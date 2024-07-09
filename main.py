@@ -20,14 +20,10 @@ def main(page: ft.Page):
         spacing=5,
         run_spacing=5,
     )
-    
 
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
         load_images_from_directory(e.path)
-    
-    pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
-    page.overlay.append(pick_files_dialog)
 
     def load_images_from_directory(dir_path):
         image_grid.controls.clear()  # Clear existing images
@@ -41,15 +37,55 @@ def main(page: ft.Page):
                 image_grid.controls.append(ft.Image(src=image_path, fit="cover"))
         page.update()
 
-    page.add(
-        ft.ElevatedButton(
-            "Open Image Directory", 
+    pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
+    page.overlay.append(pick_files_dialog)
+
+    rail = ft.NavigationRail(
+        selected_index=0,
+        label_type=ft.NavigationRailLabelType.ALL,
+        # extended=True,
+        min_width=100,
+        min_extended_width=400,
+        leading=ft.FloatingActionButton(
+            icon=ft.icons.FOLDER_OPEN, 
+            text="Open Gallery", 
             on_click=lambda _: pick_files_dialog.get_directory_path(
                 dialog_title="Open Image Folder", 
                 initial_directory=os.getcwd()
-            )
+            ),
         ),
-        image_grid,
+        group_alignment=-0.9,
+        destinations=[
+            ft.NavigationRailDestination(
+                icon_content=ft.Icon(ft.icons.GRID_VIEW_OUTLINED),
+                selected_icon_content=ft.Icon(ft.icons.GRID_VIEW_SHARP),
+                label="Gallery",
+            ),
+            ft.NavigationRailDestination(
+                icon=ft.icons.FAVORITE_BORDER, selected_icon=ft.icons.FAVORITE, label="Favorites"
+            ),
+            ft.NavigationRailDestination(
+                icon_content=ft.Icon(ft.icons.BOOKMARK_BORDER),
+                selected_icon_content=ft.Icon(ft.icons.BOOKMARK),
+                label="Bookmarks",
+            ),
+            ft.NavigationRailDestination(
+                icon=ft.icons.SETTINGS_OUTLINED,
+                selected_icon_content=ft.Icon(ft.icons.SETTINGS),
+                label_content=ft.Text("Settings"),
+            ),
+        ],
+        on_change=lambda e: print("Selected destination:", e.control.selected_index),
+    )
+    page.add(
+        ft.Row(
+            [
+                rail,
+                ft.VerticalDivider(width=1),
+                image_grid,
+            ],
+            expand=True,
+        )
     )
 
 ft.app(target=main)
