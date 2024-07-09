@@ -37,7 +37,7 @@ class PngParser:
         for node in data['nodes']:
             type = node['type']
             if self.__matches(type, NODE_NAMES_CLIP):
-                print(f"Found clip node: {type}")
+                #print(f"Found clip node: {type}")
                 clip_nodes.append(node)
             if self.__matches(type, NODE_NAMES_SAMPLER):
                 sampler_node = node
@@ -92,7 +92,7 @@ class PngParser:
         # Split by newline and commas 
         tags = re.split(r"[,\n]+", positive_prompt.strip())
         tags = [tag.strip() for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
-        print(f"Positive tags: {tags}")
+        #print(f"Positive tags: {tags}")
         
         condensed_positive_prompt = positive_prompt.replace("\n", " ")
         condensed_negative_prompt = negative_prompt.replace("\n", " ")

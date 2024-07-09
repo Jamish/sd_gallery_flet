@@ -29,10 +29,9 @@ def main(page: ft.Page):
                 png_data = png_parser.parse(image_path)
                 for tag in png_data.tags:
                     tag_cache.add(tag, image_path)
-                print(png_data.positive_prompt)
                 image_grid.controls.append(ft.Image(src=image_path, fit="cover"))
         tags = tag_cache.get_all()
-        tag_buttons = [ft.ElevatedButton(f"{tag} ({len(tag_cache.get(tag))})") for tag in tags]
+        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})") for tag in tags]
         tags_view.controls = tag_buttons
         tags_view.update()
         page.update()
