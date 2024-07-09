@@ -7,27 +7,15 @@ from lib.png_parser import PngParser
 from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
 print("hi")
+
+
 def main(page: ft.Page):
     png_parser = PngParser()
     tag_cache = TagCache()
     image_cache = ImageCache()
 
     page.title = "Image Browser"
-    image_grid = ft.GridView(
-        expand=1,
-        runs_count=5,  # Adjust columns as needed
-        max_extent=256,  # Adjust maximum image size as needed
-        spacing=5,
-        run_spacing=5,
-    )
 
-    image_grid = ft.GridView(
-        expand=1,
-        runs_count=5,  # Adjust columns as needed
-        max_extent=256,  # Adjust maximum image size as needed
-        spacing=5,
-        run_spacing=5,
-    )
 
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
@@ -43,11 +31,24 @@ def main(page: ft.Page):
                     tag_cache.add(tag, image_path)
                 print(png_data.positive_prompt)
                 image_grid.controls.append(ft.Image(src=image_path, fit="cover"))
+        tags = tag_cache.get_all()
+        tag_buttons = [ft.ElevatedButton(f"{tag} ({len(tag_cache.get(tag))})") for tag in tags]
+        tags_view.controls = tag_buttons
+        tags_view.update()
         page.update()
 
     pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
     page.overlay.append(pick_files_dialog)
 
+
+    image_grid = ft.GridView(
+        expand=1,
+        runs_count=5,  # Adjust columns as needed
+        max_extent=256,  # Adjust maximum image size as needed
+        spacing=5,
+        run_spacing=5,
+    )
+    
     temp_view = ft.Container(
         content=ft.Text("Non clickable"),
         margin=10,
@@ -59,7 +60,18 @@ def main(page: ft.Page):
         border_radius=10,
     )
 
-    temp_view.visible = False
+    tag_buttons = [ft.ElevatedButton(f"Button {i}") for i in range(20)]  # Create 20 buttons
+    tags_view = ft.Row(
+        vertical_alignment=ft.CrossAxisAlignment.START,
+        expand=1,
+        expand_loose=True,
+        controls=tag_buttons,
+        wrap=True,
+        spacing=10,  # Spacing between buttons
+        run_spacing=10,  # Spacing between rows
+    )
+    views = [image_grid, tags_view, temp_view]
+
 
     rail = ft.NavigationRail(
         selected_index=0,
@@ -83,12 +95,12 @@ def main(page: ft.Page):
                 label="Gallery",
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.FAVORITE_BORDER, selected_icon=ft.icons.FAVORITE, label="Favorites"
-            ),
-            ft.NavigationRailDestination(
                 icon_content=ft.Icon(ft.icons.BOOKMARK_BORDER),
                 selected_icon_content=ft.Icon(ft.icons.BOOKMARK),
-                label="Bookmarks",
+                label="Tags",
+            ),
+            ft.NavigationRailDestination(
+                icon=ft.icons.FAVORITE_BORDER, selected_icon=ft.icons.FAVORITE, label="Favorites"
             ),
             ft.NavigationRailDestination(
                 icon=ft.icons.SETTINGS_OUTLINED,
@@ -105,10 +117,12 @@ def main(page: ft.Page):
             match i:
                 case 0:
                     return image_grid
+                case 1:
+                    return tags_view
                 case _:
                     return temp_view
-        image_grid.visible = False
-        temp_view.visible = False
+        for view in views:
+            view.visible = False
         get_page(index).visible = True
         page.update()
 
@@ -117,8 +131,7 @@ def main(page: ft.Page):
             [
                 rail,
                 ft.VerticalDivider(width=1),
-                image_grid, 
-                temp_view,
+                *views
             ],
             expand=True,
         )
