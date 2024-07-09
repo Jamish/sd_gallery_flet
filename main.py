@@ -4,9 +4,14 @@ import flet as ft
 import os
 
 from lib.png_parser import PngParser
+from lib.image_cache import ImageCache
+from lib.tag_cache import TagCache
 print("hi")
 def main(page: ft.Page):
     png_parser = PngParser()
+    tag_cache = TagCache()
+    image_cache = ImageCache()
+
     page.title = "Image Browser"
     image_grid = ft.GridView(
         expand=1,
@@ -30,6 +35,8 @@ def main(page: ft.Page):
             if filename.lower().endswith((".png", ".jpg", ".jpeg")):
                 image_path = os.path.join(dir_path, filename)
                 png_data = png_parser.parse(image_path)
+                for tag in png_data.tags:
+                    tag_cache.add(tag, image_path)
                 print(png_data.positive_prompt)
                 image_grid.controls.append(ft.Image(src=image_path, fit="cover"))
         page.update()
