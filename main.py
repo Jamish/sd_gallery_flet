@@ -21,6 +21,14 @@ def main(page: ft.Page):
         run_spacing=5,
     )
 
+    image_grid = ft.GridView(
+        expand=1,
+        runs_count=5,  # Adjust columns as needed
+        max_extent=256,  # Adjust maximum image size as needed
+        spacing=5,
+        run_spacing=5,
+    )
+
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
         load_images_from_directory(e.path)
@@ -39,6 +47,19 @@ def main(page: ft.Page):
 
     pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
     page.overlay.append(pick_files_dialog)
+
+    temp_view = ft.Container(
+        content=ft.Text("Non clickable"),
+        margin=10,
+        padding=10,
+        alignment=ft.alignment.center,
+        bgcolor=ft.colors.AMBER,
+        width=150,
+        height=150,
+        border_radius=10,
+    )
+
+    temp_view.visible = False
 
     rail = ft.NavigationRail(
         selected_index=0,
@@ -75,18 +96,35 @@ def main(page: ft.Page):
                 label_content=ft.Text("Settings"),
             ),
         ],
-        on_change=lambda e: print("Selected destination:", e.control.selected_index),
+        on_change=lambda e: load_view(e.control.selected_index),
     )
+
+    def load_view(index):
+        print(f"load view {index}")
+        def get_page(i):
+            match i:
+                case 0:
+                    return image_grid
+                case _:
+                    return temp_view
+        image_grid.visible = False
+        temp_view.visible = False
+        get_page(index).visible = True
+        page.update()
+
     page.add(
         ft.Row(
             [
                 rail,
                 ft.VerticalDivider(width=1),
-                image_grid,
+                image_grid, 
+                temp_view,
             ],
             expand=True,
         )
     )
+    load_view(0)
+
 
 ft.app(target=main)
 print("die")
