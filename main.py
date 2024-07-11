@@ -22,19 +22,30 @@ def main(page: ft.Page):
         load_images_from_directory(e.path)
 
     def load_images_from_directory(dir_path):
-        image_grid.controls.clear()  # Clear existing images
+        image_paths = []
         for filename in os.listdir(dir_path):
-            if filename.lower().endswith((".png", ".jpg", ".jpeg")):
+            if filename.lower().endswith((".png")):
                 image_path = os.path.join(dir_path, filename)
                 png_data = png_parser.parse(image_path)
                 for tag in png_data.tags:
                     tag_cache.add(tag, image_path)
-                image_grid.controls.append(ft.Image(src=image_path, fit="cover"))
+                image_paths.append(image_path)
         tags = tag_cache.get_all()
-        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})") for tag in tags]
+        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
         tags_view.controls = tag_buttons
         tags_view.update()
+        load_gallery(image_paths)
+
+    def load_gallery(image_paths):
+        image_grid.controls.clear()  # Clear existing images
+        for image_path in image_paths:
+            image_grid.controls.append(ft.Image(src=image_path, fit="cover"))
         page.update()
+
+    def select_tag(e):
+        tag = e.control.data
+        print(f"Clicked tag {tag.name}")
+        load_gallery(tag.files)
 
     pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
     page.overlay.append(pick_files_dialog)
