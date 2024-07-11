@@ -27,6 +27,7 @@ def main(page: ft.Page):
             if filename.lower().endswith((".png")):
                 image_path = os.path.join(dir_path, filename)
                 png_data = png_parser.parse(image_path)
+                image_cache.set(image_path, png_data)
                 for tag in png_data.tags:
                     tag_cache.add(tag, image_path)
                 image_paths.append(image_path)
@@ -43,45 +44,82 @@ def main(page: ft.Page):
         rail.selected_index = 0;
         load_view(0)
 
+    selected_tags = []
+    def deselect_tag(e):
+        tag = e.control.data
+        selected_tags = []
+        filters_container.controls = selected_tags
+        filters_container.update()
+        paths = list(map(lambda image: image.filename, image_cache.get_all()));
+        print(f"image cache length is {len(image_cache.get_all())}")
+        print(f"Image path is {paths}")
+        load_gallery(paths)
+
     def select_tag(e):
         tag = e.control.data
         print(f"Clicked tag {tag.name}")
+        selected_tags = [ft.ElevatedButton(f"{tag.name}", icon=ft.icons.CLEAR_ROUNDED, on_click=deselect_tag, data=tag)]
+        filters_container.controls = selected_tags
+        filters_container.update()
         load_gallery(tag.files)
 
     pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
     page.overlay.append(pick_files_dialog)
 
+    filters_container = ft.Row(
+        vertical_alignment=ft.CrossAxisAlignment.START,
+        controls=selected_tags,
+        wrap=True,
+        spacing=10,  # Spacing between buttons
+        run_spacing=10,  # Spacing between rows
+    )
 
     image_grid = ft.GridView(
-        expand=1,
+        expand=True,
         runs_count=5,  # Adjust columns as needed
         max_extent=256,  # Adjust maximum image size as needed
         spacing=5,
         run_spacing=5,
     )
+
+    gallery_view = ft.Container(
+        expand=True, 
+        content=ft.Column(
+        [
+            filters_container,
+            ft.Divider(height=1),
+            image_grid
+        ]
+    )
+    )
     
-    temp_view = ft.Container(
-        content=ft.Text("Non clickable"),
-        margin=10,
-        padding=10,
-        alignment=ft.alignment.center,
-        bgcolor=ft.colors.AMBER,
-        width=150,
-        height=150,
-        border_radius=10,
+    
+    temp_view = ft.Column(
+        [
+            ft.Container(
+                content=ft.Text("Non clickable"),
+                margin=10,
+                padding=10,
+                alignment=ft.alignment.center,
+                bgcolor=ft.colors.AMBER,
+                width=150,
+                height=150,
+                border_radius=10,
+            )
+        ]
     )
 
-    tag_buttons = [ft.ElevatedButton(f"Button {i}") for i in range(20)]  # Create 20 buttons
+
     tags_view = ft.Row(
         vertical_alignment=ft.CrossAxisAlignment.START,
         expand=1,
         expand_loose=True,
-        controls=tag_buttons,
+        controls=None,
         wrap=True,
         spacing=10,  # Spacing between buttons
         run_spacing=10,  # Spacing between rows
     )
-    views = [image_grid, tags_view, temp_view]
+    views = [gallery_view, tags_view, temp_view]
 
 
     rail = ft.NavigationRail(
@@ -125,16 +163,13 @@ def main(page: ft.Page):
     def load_view(index):
         print(f"load view {index}")
         def get_page(i):
-            match i:
-                case 0:
-                    return image_grid
-                case 1:
-                    return tags_view
-                case _:
-                    return temp_view
+            if i >= len(views):
+                return views[-1]
+            return views[i]
         for view in views:
             view.visible = False
         get_page(index).visible = True
+        view.update()
         page.update()
 
     page.add(
