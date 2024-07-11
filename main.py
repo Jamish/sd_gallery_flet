@@ -40,7 +40,11 @@ def main(page: ft.Page):
     def load_gallery(image_paths):
         image_grid.controls.clear()  # Clear existing images
         for image_path in image_paths:
-            image_grid.controls.append(ft.Image(src=image_path, fit="cover"))
+            entry = ft.Container(
+                on_click=lambda e: print(f"Clicked {image_path}"),
+                content=ft.Image(src=image_path, fit="cover")
+            )
+            image_grid.controls.append(entry)
         rail.selected_index = 0;
         load_view(0)
 
