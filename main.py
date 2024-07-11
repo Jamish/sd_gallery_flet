@@ -40,7 +40,8 @@ def main(page: ft.Page):
         image_grid.controls.clear()  # Clear existing images
         for image_path in image_paths:
             image_grid.controls.append(ft.Image(src=image_path, fit="cover"))
-        page.update()
+        rail.selected_index = 0;
+        load_view(0)
 
     def select_tag(e):
         tag = e.control.data
