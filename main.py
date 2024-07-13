@@ -3,6 +3,7 @@
 import flet as ft
 import os
 
+from functools import partial
 from lib.png_parser import PngParser
 from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
@@ -41,7 +42,7 @@ def main(page: ft.Page):
         image_grid.controls.clear()  # Clear existing images
         for image_path in image_paths:
             entry = ft.Container(
-                on_click=lambda e: print(f"Clicked {image_path}"),
+                on_click=partial(create_image_popup, image_path),
                 content=ft.Image(src=image_path, fit="cover")
             )
             image_grid.controls.append(entry)
@@ -123,6 +124,21 @@ def main(page: ft.Page):
         spacing=10,  # Spacing between buttons
         run_spacing=10,  # Spacing between rows
     )
+
+    def create_image_popup(image_path, e):
+        print(e)
+        print(image_path)
+        popup = ft.AlertDialog(
+            content=ft.Image(src=image_path, fit="cover"),
+            actions_alignment=ft.MainAxisAlignment.END,
+            on_dismiss=lambda e: print("Image closed"),
+        )
+        page.open(popup)
+        return popup
+
+
+
+
     views = [gallery_view, tags_view, temp_view]
 
 
