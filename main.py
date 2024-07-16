@@ -147,7 +147,7 @@ def main(page: ft.Page):
             expand=True,
             scroll=ft.ScrollMode.ALWAYS,
             controls=[
-                ft.Image(src=image_path, fit=ft.ImageFit.FILL),
+                ft.Image(src=image_path, fit=ft.ImageFit.SCALE_DOWN),
                 ft.VerticalDivider(width=1),
                 ft.Column(
                     alignment=ft.MainAxisAlignment.START,
@@ -177,11 +177,12 @@ def main(page: ft.Page):
                 )
             ],
             alignment=ft.MainAxisAlignment.END)
-        ])
+        ], expand=True)
 
         if should_add_popup:
             page.add(image_popup)
         main_view.visible = False
+        page.update()
         
 
 
