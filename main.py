@@ -130,7 +130,6 @@ def main(page: ft.Page):
 
     def hide_image_popup(e):
         nonlocal image_popup
-        print("Click hide!")
         main_view.visible=True
         image_popup.visible = False
         image_popup = None
@@ -143,15 +142,17 @@ def main(page: ft.Page):
         image_data = image_cache.get(image_path)
         content = ft.Row(
             alignment=ft.MainAxisAlignment.SPACE_EVENLY, 
-            tight=True,
-            expand=True,
-            scroll=ft.ScrollMode.ALWAYS,
             controls=[
-                ft.Image(src=image_path, fit=ft.ImageFit.SCALE_DOWN),
+                ft.Image(
+                    expand=True,
+                    src=image_path, 
+                    fit=ft.ImageFit.CONTAIN,
+                ),
                 ft.VerticalDivider(width=1),
                 ft.Column(
                     alignment=ft.MainAxisAlignment.START,
                     horizontal_alignment=ft.CrossAxisAlignment.END,
+                    scroll=ft.ScrollMode.ALWAYS,
                     controls=[
                         ft.TextField(label="Positives", read_only=True, multiline=True, value=image_data.positive_prompt),
                         ft.FilledButton(text="Copy"),
