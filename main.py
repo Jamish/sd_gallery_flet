@@ -140,6 +140,7 @@ def main(page: ft.Page):
         nonlocal image_popup
         
         image_data = image_cache.get(image_path)
+        lora_string = "\n".join(image_data.loras)
         content = ft.Row(
             alignment=ft.MainAxisAlignment.SPACE_EVENLY, 
             controls=[
@@ -154,11 +155,13 @@ def main(page: ft.Page):
                     horizontal_alignment=ft.CrossAxisAlignment.END,
                     scroll=ft.ScrollMode.ALWAYS,
                     controls=[
-                        ft.TextField(label="Positives", read_only=True, multiline=True, value=image_data.positive_prompt),
-                        ft.FilledButton(text="Copy"),
+                        ft.TextField(label="Model Checkpoint", read_only=True, value=image_data.checkpoint),
+                        ft.TextField(label="LORAs", read_only=True, multiline=True, value=lora_string),
+                        ft.FilledButton(text="Copy Positive Prompt"),
+                        ft.TextField(label="Positive Prompt", read_only=True, multiline=True, value=image_data.positive_prompt),
                         ft.Divider(height=1),
-                        ft.TextField(label="Negative", read_only=True, multiline=True,value=image_data.negative_prompt),
-                        ft.FilledButton(text="Copy"),
+                        ft.FilledButton(text="Copy Negative Prompt"),
+                        ft.TextField(label="Negative Prompt", read_only=True, multiline=True,value=image_data.negative_prompt),
                     ]
                 )
             ]
@@ -172,6 +175,7 @@ def main(page: ft.Page):
             content,
             ft.Row([
                 ft.FloatingActionButton(
+                    mini=True,
                     icon=ft.icons.CLEAR_ROUNDED,
                     data=0,
                     on_click=hide_image_popup,
