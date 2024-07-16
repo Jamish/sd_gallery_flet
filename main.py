@@ -43,11 +43,12 @@ def main(page: ft.Page):
         for image_path in image_paths:
             entry = ft.Container(
                 on_click=partial(create_image_popup, image_path),
-                content=ft.Image(src=image_path, fit="cover")
+                content=ft.Image(src=image_path, fit=ft.ImageFit.COVER, border_radius=ft.border_radius.all(5))
             )
             image_grid.controls.append(entry)
         rail.selected_index = 0;
-        load_view(0)
+        load_subview(0)
+        #create_image_popup(image_paths[-1], None)
 
     selected_tags = []
     def deselect_tag(e):
@@ -125,21 +126,68 @@ def main(page: ft.Page):
         run_spacing=10,  # Spacing between rows
     )
 
+    image_popup = None
+
+    def hide_image_popup(e):
+        nonlocal image_popup
+        print("Click hide!")
+        main_view.visible=True
+        image_popup.visible = False
+        image_popup = None
+        page.update()
+
+
     def create_image_popup(image_path, e):
-        print(e)
-        print(image_path)
-        popup = ft.AlertDialog(
-            content=ft.Image(src=image_path, fit="cover"),
-            actions_alignment=ft.MainAxisAlignment.END,
-            on_dismiss=lambda e: print("Image closed"),
+        nonlocal image_popup
+        
+        image_data = image_cache.get(image_path)
+        content = ft.Row(
+            alignment=ft.MainAxisAlignment.SPACE_EVENLY, 
+            tight=True,
+            expand=True,
+            scroll=ft.ScrollMode.ALWAYS,
+            controls=[
+                ft.Image(src=image_path, fit=ft.ImageFit.FILL),
+                ft.VerticalDivider(width=1),
+                ft.Column(
+                    alignment=ft.MainAxisAlignment.START,
+                    horizontal_alignment=ft.CrossAxisAlignment.END,
+                    controls=[
+                        ft.TextField(label="Positives", read_only=True, multiline=True, value=image_data.positive_prompt),
+                        ft.FilledButton(text="Copy"),
+                        ft.Divider(height=1),
+                        ft.TextField(label="Negative", read_only=True, multiline=True,value=image_data.negative_prompt),
+                        ft.FilledButton(text="Copy"),
+                    ]
+                )
+            ]
         )
-        page.open(popup)
-        return popup
+
+        should_add_popup = False
+        if image_popup is None:
+            should_add_popup = True
+
+        image_popup = ft.Stack([
+            content,
+            ft.Row([
+                ft.FloatingActionButton(
+                    icon=ft.icons.CLEAR_ROUNDED,
+                    data=0,
+                    on_click=hide_image_popup,
+                )
+            ],
+            alignment=ft.MainAxisAlignment.END)
+        ])
+
+        if should_add_popup:
+            page.add(image_popup)
+        main_view.visible = False
+        
 
 
 
 
-    views = [gallery_view, tags_view, temp_view]
+    subviews = [gallery_view, tags_view, temp_view]
 
 
     rail = ft.NavigationRail(
@@ -177,32 +225,34 @@ def main(page: ft.Page):
                 label_content=ft.Text("Settings"),
             ),
         ],
-        on_change=lambda e: load_view(e.control.selected_index),
+        on_change=lambda e: load_subview(e.control.selected_index),
     )
 
-    def load_view(index):
-        print(f"load view {index}")
+    def load_subview(index):
+        print(f"load subview {index}")
         def get_page(i):
-            if i >= len(views):
-                return views[-1]
-            return views[i]
-        for view in views:
-            view.visible = False
+            if i >= len(subviews):
+                return subviews[-1]
+            return subviews[i]
+        for subview in subviews:
+            subview.visible = False
         get_page(index).visible = True
-        view.update()
+        subview.update()
         page.update()
 
-    page.add(
-        ft.Row(
-            [
-                rail,
-                ft.VerticalDivider(width=1),
-                *views
-            ],
-            expand=True,
-        )
+    main_view = ft.Row(
+        [
+            rail,
+            ft.VerticalDivider(width=1),
+            *subviews
+        ],
+        expand=True,
     )
-    load_view(0)
+    page.add(main_view)
+    load_subview(0)
+
+
+    load_images_from_directory("G:\My Drive\Projects\Programming\Python\SDImageBrowser\gallery")
 
 
 ft.app(target=main)
