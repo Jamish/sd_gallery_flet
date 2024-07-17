@@ -157,6 +157,7 @@ def main(page: ft.Page):
         max_extent=256,  # Adjust maximum image size as needed
         spacing=5,
         run_spacing=5,
+        padding=ft.padding.only(right=15)
     )
 
     gallery_view = ft.Container(
