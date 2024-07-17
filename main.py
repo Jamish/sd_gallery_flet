@@ -2,6 +2,7 @@
 import pyperclip
 import flet as ft
 import os
+import concurrent.futures
 
 from functools import partial
 from lib.png_parser import PngParser
@@ -28,14 +29,29 @@ def main(page: ft.Page):
 
     def load_images_from_directory(dir_path):
         image_paths = []
-        for filename in os.listdir(dir_path):
-            if filename.lower().endswith((".png")):
-                image_path = os.path.join(dir_path, filename)
-                png_data = png_parser.parse(image_path)
-                image_cache.set(image_path, png_data)
-                for tag in png_data.tags:
-                    tag_cache.add(tag, image_path)
-                image_paths.append(image_path)
+
+        def process_image(filename):
+            print(f"Processing image {filename}")
+            image_path = os.path.join(dir_path, filename)
+            png_data = png_parser.parse(image_path)
+            image_cache.set(image_path, png_data)
+            for tag in png_data.tags:
+                tag_cache.add(tag, image_path)
+            return image_path
+        
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            # Submit image processing tasks to the thread pool
+            futures = []
+            for filename in os.listdir(dir_path):
+                if filename.lower().endswith((".png")):
+                    future = executor.submit(process_image, filename)
+                    futures.append(future)
+            
+            # Wait for results and collect image paths
+            for future in concurrent.futures.as_completed(futures):
+                image_paths.append(future.result()) 
+
         tags = tag_cache.get_all()
         tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
         tags_view.controls = tag_buttons
@@ -119,15 +135,20 @@ def main(page: ft.Page):
     )
 
 
-    tags_view = ft.Row(
-        vertical_alignment=ft.CrossAxisAlignment.START,
-        expand=1,
-        expand_loose=True,
-        controls=None,
-        wrap=True,
-        spacing=10,  # Spacing between buttons
-        run_spacing=10,  # Spacing between rows
-    )
+    tags_view = ft.Column(
+        alignment=ft.MainAxisAlignment.START,
+        horizontal_alignment=ft.CrossAxisAlignment.START,
+        scroll=ft.ScrollMode.ALWAYS,
+        expand=True,
+        controls=[ft.Row(
+            vertical_alignment=ft.CrossAxisAlignment.START,
+            controls=None,
+            wrap=True,
+            expand=True,
+            spacing=10,  # Spacing between buttons
+            run_spacing=10,  # Spacing between rows
+            
+        )])
 
     image_popup = None
 
