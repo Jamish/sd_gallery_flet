@@ -28,8 +28,6 @@ def main(page: ft.Page):
         load_images_from_directory(e.path)
 
     def load_images_from_directory(dir_path):
-        image_paths = []
-
         def process_image(filename):
             print(f"Processing image {filename}")
             image_path = os.path.join(dir_path, filename)
@@ -39,8 +37,9 @@ def main(page: ft.Page):
                 tag_cache.add(tag, image_path)
             return image_path
         
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        image_grid.controls.clear()  # Clear existing images
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             # Submit image processing tasks to the thread pool
             futures = []
             for filename in os.listdir(dir_path):
@@ -50,13 +49,20 @@ def main(page: ft.Page):
             
             # Wait for results and collect image paths
             for future in concurrent.futures.as_completed(futures):
-                image_paths.append(future.result()) 
+                add_to_gallery(future.result())
 
-        tags = tag_cache.get_all()
-        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
-        tags_view.controls = tag_buttons
-        tags_view.update()
-        load_gallery(image_paths)
+            tags = tag_cache.get_all()
+            tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
+            tags_view.controls = tag_buttons
+            tags_view.update()
+
+    def add_to_gallery(image_path):
+        entry = ft.Container(
+            on_click=partial(create_image_popup, image_path),
+            content=ft.Image(src=image_path, fit=ft.ImageFit.COVER, border_radius=ft.border_radius.all(5))
+        )
+        image_grid.controls.append(entry)
+        page.update()
 
     def load_gallery(image_paths):
         image_grid.controls.clear()  # Clear existing images
@@ -147,7 +153,6 @@ def main(page: ft.Page):
             expand=True,
             spacing=10,  # Spacing between buttons
             run_spacing=10,  # Spacing between rows
-            
         )])
 
     image_popup = None
