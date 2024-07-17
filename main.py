@@ -13,6 +13,7 @@ from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
 print("hi")
 
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 def main(page: ft.Page):
     cache_dir = ".cache"
@@ -55,11 +56,6 @@ def main(page: ft.Page):
                 save_json(png_data, json_path)
                 return png_data
         
-
-            # Check if filename.json exists
-            # If yes, load JSON into png_data object
-            # If no, run png_parser.parse and save the png_data
-            # return png_data
         def process_image(filename):
             image_path = os.path.join(dir_path, filename)
             #png_data = png_parser.parse(image_path)
@@ -71,25 +67,24 @@ def main(page: ft.Page):
         
         image_grid.controls.clear()  # Clear existing images
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            # Submit image processing tasks to the thread pool
-            futures = []
-            for filename in os.listdir(dir_path):
-                if filename.lower().endswith((".png")):
-                    future = executor.submit(process_image, filename)
-                    futures.append(future)
-            
-            # Wait for results and collect image paths
-            for future in concurrent.futures.as_completed(futures):
-                image_path = future.result()
-                thumbnail_path = make_thumbnail(image_path)
-                add_to_gallery(image_path, thumbnail_path)
+        # Submit image processing tasks to the thread pool
+        futures = []
+        for filename in os.listdir(dir_path):
+            if filename.lower().endswith((".png")):
+                future = executor.submit(process_image, filename)
+                futures.append(future)
+        
+        # Wait for results and collect image paths
+        for future in concurrent.futures.as_completed(futures):
+            image_path = future.result()
+            thumbnail_path = make_thumbnail(image_path)
+            add_to_gallery(image_path, thumbnail_path)
 
-            # Update tags when everything is loaded
-            tags = tag_cache.get_all()
-            tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
-            tags_view.controls = tag_buttons
-            tags_view.update()
+        # Update tags when everything is loaded
+        tags = tag_cache.get_all()
+        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
+        tags_view.controls = tag_buttons
+        tags_view.update()
 
     def make_thumbnail(image_path):
         thumbnail_path = os.path.join(cache_dir, os.path.basename(image_path))
@@ -353,4 +348,6 @@ def main(page: ft.Page):
 
     page.on_keyboard_event = on_keyboard
 ft.app(target=main)
-print("die")
+print("Shutting down worker threads...")
+executor.shutdown(wait=True, cancel_futures=True)
+print("Done! Adios!")
