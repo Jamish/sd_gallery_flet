@@ -140,7 +140,12 @@ def main(page: ft.Page):
         nonlocal image_popup
         
         image_data = image_cache.get(image_path)
-        lora_string = "\n".join(image_data.loras)
+        lora_fields = []
+        i = 0
+        for lora in image_data.loras:
+            i += 1
+            lora_fields.append(ft.TextField(label=f"LoRA #{i}", read_only=True, value=lora)),
+                               
         content = ft.Row(
             alignment=ft.MainAxisAlignment.SPACE_EVENLY, 
             controls=[
@@ -150,19 +155,24 @@ def main(page: ft.Page):
                     fit=ft.ImageFit.CONTAIN,
                 ),
                 ft.VerticalDivider(width=1),
-                ft.Column(
-                    alignment=ft.MainAxisAlignment.START,
-                    horizontal_alignment=ft.CrossAxisAlignment.END,
-                    scroll=ft.ScrollMode.ALWAYS,
-                    controls=[
-                        ft.TextField(label="Model Checkpoint", read_only=True, value=image_data.checkpoint),
-                        ft.TextField(label="LORAs", read_only=True, multiline=True, value=lora_string),
-                        ft.FilledButton(text="Copy Positive Prompt"),
-                        ft.TextField(label="Positive Prompt", read_only=True, multiline=True, value=image_data.positive_prompt),
-                        ft.Divider(height=1),
-                        ft.FilledButton(text="Copy Negative Prompt"),
-                        ft.TextField(label="Negative Prompt", read_only=True, multiline=True,value=image_data.negative_prompt),
-                    ]
+                ft.Container(
+                    padding = 10,
+                    width=384,
+                    content = ft.Column(
+                        alignment=ft.MainAxisAlignment.START,
+                        horizontal_alignment=ft.CrossAxisAlignment.END,
+                        scroll=ft.ScrollMode.ALWAYS,
+                        controls=[
+                            ft.Container(height=10), # To give visual space from the top, for the floating X button
+                            ft.TextField(label="Model Checkpoint", read_only=True, value=image_data.checkpoint),
+                            *lora_fields,
+                            ft.Container(height=5), # To separate LoRAs and prompts
+                            ft.TextField(label="Positive Prompt", read_only=True, multiline=True, value=image_data.positive_prompt),
+                            ft.FilledButton(text="Copy Positive Prompt"),
+                            ft.TextField(label="Negative Prompt", read_only=True, multiline=True,value=image_data.negative_prompt),
+                            ft.FilledButton(text="Copy Negative Prompt"),
+                        ]
+                    )
                 )
             ]
         )
