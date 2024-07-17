@@ -3,8 +3,11 @@ import pyperclip
 import flet as ft
 import os
 import concurrent.futures
-
+from PIL import Image
+import json
+from dataclasses import asdict, field
 from functools import partial
+from lib.png_data import PngData
 from lib.png_parser import PngParser
 from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
@@ -12,6 +15,9 @@ print("hi")
 
 
 def main(page: ft.Page):
+    cache_dir = ".cache"
+    os.makedirs(cache_dir, exist_ok=True)
+
     png_parser = PngParser()
     tag_cache = TagCache()
     image_cache = ImageCache()
@@ -28,10 +34,36 @@ def main(page: ft.Page):
         load_images_from_directory(e.path)
 
     def load_images_from_directory(dir_path):
+        def get_png_data(image_path) -> PngData:
+            def save_json(png_data: PngData, json_path):
+                json_data = asdict(png_data)
+                with open(json_path, "w") as json_file:
+                    json.dump(json_data, json_file, indent=4)
+            def load_json(json_path: str) -> PngData:
+                with open(json_path, "r") as json_file:
+                    json_data = json.load(json_file)
+                return PngData(**json_data)
+            
+            filename = os.path.basename(image_path)
+            root, _ = os.path.splitext(filename)
+            json_filename = f"{root}.json"
+            json_path = os.path.join(cache_dir, json_filename)
+            if os.path.isfile(json_path):
+                return load_json(json_path)
+            else:
+                png_data = png_parser.parse(image_path)
+                save_json(png_data, json_path)
+                return png_data
+        
+
+            # Check if filename.json exists
+            # If yes, load JSON into png_data object
+            # If no, run png_parser.parse and save the png_data
+            # return png_data
         def process_image(filename):
-            print(f"Processing image {filename}")
             image_path = os.path.join(dir_path, filename)
-            png_data = png_parser.parse(image_path)
+            #png_data = png_parser.parse(image_path)
+            png_data = get_png_data(image_path)
             image_cache.set(image_path, png_data)
             for tag in png_data.tags:
                 tag_cache.add(tag, image_path)
@@ -49,17 +81,36 @@ def main(page: ft.Page):
             
             # Wait for results and collect image paths
             for future in concurrent.futures.as_completed(futures):
-                add_to_gallery(future.result())
+                image_path = future.result()
+                thumbnail_path = make_thumbnail(image_path)
+                add_to_gallery(image_path, thumbnail_path)
 
+            # Update tags when everything is loaded
             tags = tag_cache.get_all()
             tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
             tags_view.controls = tag_buttons
             tags_view.update()
 
-    def add_to_gallery(image_path):
+    def make_thumbnail(image_path):
+        thumbnail_path = os.path.join(cache_dir, os.path.basename(image_path))
+        
+        # Don't make a thumbnail if one is already in the cache
+        if os.path.isfile(thumbnail_path):
+            return thumbnail_path
+        
+        print(f"Generating thumbnail: {os.path.basename(image_path)}")
+        with Image.open(image_path) as img:
+            # Resize while maintaining aspect ratio
+            img.thumbnail((256, 256))  
+            # Construct the thumbnail file path
+            # Save the thumbnail
+            img.save(thumbnail_path)
+            return thumbnail_path
+
+    def add_to_gallery(image_path, thumnbnail_path):
         entry = ft.Container(
             on_click=partial(create_image_popup, image_path),
-            content=ft.Image(src=image_path, fit=ft.ImageFit.COVER, border_radius=ft.border_radius.all(5))
+            content=ft.Image(src=thumnbnail_path, fit=ft.ImageFit.COVER, border_radius=ft.border_radius.all(5))
         )
         image_grid.controls.append(entry)
         page.update()
@@ -297,7 +348,7 @@ def main(page: ft.Page):
     load_subview(0)
 
 
-    load_images_from_directory("G:\My Drive\Projects\Programming\Python\SDImageBrowser\gallery")
+    load_images_from_directory("C:/Users/jamis/Data/SDImageBrowser/gallery")
 
 
     page.on_keyboard_event = on_keyboard

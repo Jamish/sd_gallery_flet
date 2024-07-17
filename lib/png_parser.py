@@ -2,6 +2,7 @@
 from lib.png_data import PngData
 from PIL import Image
 import json
+import os
 import re
 
 NODE_NAMES_SAMPLER = ["KSampler"]
@@ -21,6 +22,7 @@ class PngParser:
         return False
 
     def parse(self, filename: str) -> PngData:
+        print(f"Parsing metadata: {os.path.basename(filename)}")
         im = Image.open(filename)
         im.load()
         workflow = im.info['workflow']
