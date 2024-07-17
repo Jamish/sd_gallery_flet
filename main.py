@@ -1,5 +1,5 @@
-# pip install flet
 
+import pyperclip
 import flet as ft
 import os
 
@@ -16,7 +16,6 @@ def main(page: ft.Page):
     image_cache = ImageCache()
 
     page.title = "Image Browser"
-
 
     def on_keyboard(e: ft.KeyboardEvent):
         if e.key == "Escape":
@@ -51,9 +50,8 @@ def main(page: ft.Page):
                 content=ft.Image(src=image_path, fit=ft.ImageFit.COVER, border_radius=ft.border_radius.all(5))
             )
             image_grid.controls.append(entry)
-        rail.selected_index = 0;
+        rail.selected_index = 0
         load_subview(0)
-        #create_image_popup(image_paths[-1], None)
 
     selected_tags = []
     def deselect_tag(e):
@@ -173,9 +171,9 @@ def main(page: ft.Page):
                             *lora_fields,
                             ft.Container(height=5), # To separate LoRAs and prompts
                             ft.TextField(label="Positive Prompt", read_only=True, multiline=True, value=image_data.positive_prompt),
-                            ft.FilledButton(text="Copy Positive Prompt"),
+                            ft.ElevatedButton(text="Copy Positive Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
                             ft.TextField(label="Negative Prompt", read_only=True, multiline=True,value=image_data.negative_prompt),
-                            ft.FilledButton(text="Copy Negative Prompt"),
+                            ft.ElevatedButton(text="Copy Negative Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
                         ]
                     )
                 )
