@@ -18,6 +18,11 @@ def main(page: ft.Page):
     page.title = "Image Browser"
 
 
+    def on_keyboard(e: ft.KeyboardEvent):
+        if e.key == "Escape":
+            if image_popup != None:
+                hide_image_popup(None)
+
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
         load_images_from_directory(e.path)
@@ -178,7 +183,7 @@ def main(page: ft.Page):
         )
 
         should_add_popup = False
-        if image_popup is None:
+        if image_popup == None:
             should_add_popup = True
 
         image_popup = ft.Stack([
@@ -271,5 +276,6 @@ def main(page: ft.Page):
     load_images_from_directory("G:\My Drive\Projects\Programming\Python\SDImageBrowser\gallery")
 
 
+    page.on_keyboard_event = on_keyboard
 ft.app(target=main)
 print("die")
