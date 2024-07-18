@@ -77,17 +77,23 @@ class PngParser:
 
         positive_prompt = ""
         negative_prompt = ""
-        if len(clip_nodes) == 2:
+        if len(clip_nodes) > 1:
             for clip_node in clip_nodes:
                 if clip_node['id'] == sampler_positive_link_source_node_id:
-                    positive_prompt = clip_node['widgets_values'][0]
+                    if clip_node['properties']['Node name for S&R'] == "workflow/CLIP":
+                        positive_prompt = clip_node['widgets_values'][1] # le hack for  ComfyUI-2024-05_00747_.png
+                    else:
+                        positive_prompt = clip_node['widgets_values'][0]
                 if clip_node['id'] == sampler_negative_link_source_node_id:
-                    negative_prompt = clip_node['widgets_values'][0]
+                    if clip_node['properties']['Node name for S&R'] == "workflow/CLIP":
+                        negative_prompt = clip_node['widgets_values'][2] # le hack for  ComfyUI-2024-05_00747_.png
+                    else:
+                        negative_prompt = clip_node['widgets_values'][0]
         elif len(clip_nodes) == 1:
             positive_prompt = clip_nodes[0]['widgets_values'][1]
             negative_prompt = clip_nodes[0]['widgets_values'][2]
         else:
-            raise Exception(f"Found more than 2 CLIP nodes...")
+            raise Exception(f"Found more than 2 CLIP nodes for file {filename}.")
 
         # pyperclip.copy(prompt)
 

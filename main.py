@@ -13,7 +13,7 @@ from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
 print("hi")
 
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=16)
 
 def main(page: ft.Page):
     cache_dir = ".cache"
@@ -28,7 +28,7 @@ def main(page: ft.Page):
     def on_keyboard(e: ft.KeyboardEvent):
         if e.key == "Escape":
             if image_popup != None:
-                hide_image_popup(None)
+                close_image_popup(None)
 
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
@@ -69,15 +69,20 @@ def main(page: ft.Page):
 
         # Submit image processing tasks to the thread pool
         futures = []
-        for filename in os.listdir(dir_path):
+        file_list = os.listdir(dir_path)
+        for filename in file_list:
             if filename.lower().endswith((".png")):
                 future = executor.submit(process_image, filename)
                 futures.append(future)
         
         # Wait for results and collect image paths
+        total = len(file_list)
+        count = 0
         for future in concurrent.futures.as_completed(futures):
             image_path = future.result()
             thumbnail_path = make_thumbnail(image_path)
+            count += 1
+            print(f"Processed: {100*count/total}%")
             add_to_gallery(image_path, thumbnail_path)
 
         # Update tags when everything is loaded
@@ -102,10 +107,15 @@ def main(page: ft.Page):
             img.save(thumbnail_path)
             return thumbnail_path
 
-    def add_to_gallery(image_path, thumnbnail_path):
+    def add_to_gallery(image_path, thumbnail_path):
         entry = ft.Container(
             on_click=partial(create_image_popup, image_path),
-            content=ft.Image(src=thumnbnail_path, fit=ft.ImageFit.COVER, border_radius=ft.border_radius.all(5))
+            content=ft.Image(
+                src=thumbnail_path, 
+                fit=ft.ImageFit.COVER,
+                key=image_path,
+                border_radius=ft.border_radius.all(5)
+                )
         )
         image_grid.controls.append(entry)
         page.update()
@@ -157,7 +167,7 @@ def main(page: ft.Page):
         max_extent=256,  # Adjust maximum image size as needed
         spacing=5,
         run_spacing=5,
-        padding=ft.padding.only(right=15)
+        padding=ft.padding.only(right=15),
     )
 
     gallery_view = ft.Container(
@@ -204,12 +214,14 @@ def main(page: ft.Page):
 
     image_popup = None
 
-    def hide_image_popup(e):
+    def close_image_popup(e):
         nonlocal image_popup
         main_view.visible=True
+        gallery_key_to_scroll_to = image_popup.data
         image_popup.visible = False
         image_popup = None
         page.update()
+        image_grid.scroll_to(key=gallery_key_to_scroll_to)
 
 
     def create_image_popup(image_path, e):
@@ -263,12 +275,11 @@ def main(page: ft.Page):
                 ft.FloatingActionButton(
                     mini=True,
                     icon=ft.icons.CLEAR_ROUNDED,
-                    data=0,
-                    on_click=hide_image_popup,
+                    on_click=close_image_popup,
                 )
             ],
             alignment=ft.MainAxisAlignment.END)
-        ], expand=True)
+        ], expand=True, data=image_path)
 
         if should_add_popup:
             page.add(image_popup)
@@ -344,7 +355,7 @@ def main(page: ft.Page):
     load_subview(0)
 
 
-    load_images_from_directory("C:/Users/jamis/Data/SDImageBrowser/gallery")
+    #load_images_from_directory("C:/Users/jamis/Data/SDImageBrowser/gallery")
 
 
     page.on_keyboard_event = on_keyboard
