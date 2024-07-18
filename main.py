@@ -70,9 +70,10 @@ def main(page: ft.Page):
             # png_data = get_png_data(image_path)
 
             # check sqlite3 and deflate if found
-            png_data = png_parser.parse(image_path)
+            png_data = database.get(filename)
+            if png_data is None:
+                png_data = png_parser.parse(image_path)
                 
-
             image_cache.set(image_path, png_data)
             for tag in png_data.tags:
                 tag_cache.add(tag, image_path)
@@ -105,6 +106,10 @@ def main(page: ft.Page):
 
             count += 1
             print(f"Processed: {100*count/total}%")
+            # Each one of these is an add-and-refresh, which is very slow!
+            # I noticed that my network was done (all images were downloaded and parsed)
+            # and it was just adding one image at a time which took slower and slwoer and slower.
+            # Maybe I can add to gallery in batches?
             add_to_gallery(image_path)
 
         # Update tags when everything is loaded

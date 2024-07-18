@@ -36,6 +36,16 @@ class Database:
                 #         metadata = f.read()
                 #     cursor.execute("INSERT INTO images VALUES (?, ?, ?)", (os.path.basename(image_path), thumbnail_data, metadata))
 
+    def get(self, filename: str) -> PngData:
+         print(f"Fetching from database: {filename}")
+         with closing(sqlite3.connect(self.database_path)) as connection:
+            with closing(connection.cursor()) as cursor:
+                rows = cursor.execute("SELECT filename, metadata FROM images WHERE filename = ?", (filename,)).fetchall()
+                if len(rows) == 0:
+                    return None
+                json_metadata = json.loads(rows[0][1])
+                return PngData(**json_metadata)
+
     def upsert(self, data: DiskCacheEntry):
         metadata = json.dumps(asdict(data.png_data), indent=4)
 
