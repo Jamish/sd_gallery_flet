@@ -104,7 +104,7 @@ def main(page: ft.Page):
         # Update tags when everything is loaded
         tags = tag_cache.get_all()
         tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
-        tags_view.controls = tag_buttons
+        tags_control.controls = tag_buttons
         tags_view.update()
 
     def add_to_gallery(image_paths):
@@ -199,19 +199,20 @@ def main(page: ft.Page):
     )
 
 
+    tags_control = ft.Row(
+        vertical_alignment=ft.CrossAxisAlignment.START,
+        controls=None,
+        wrap=True,
+        expand=True,
+        spacing=10,  # Spacing between buttons
+        run_spacing=10,  # Spacing between rows
+    )
     tags_view = ft.Column(
         alignment=ft.MainAxisAlignment.START,
         horizontal_alignment=ft.CrossAxisAlignment.START,
         scroll=ft.ScrollMode.ALWAYS,
         expand=True,
-        controls=[ft.Row(
-            vertical_alignment=ft.CrossAxisAlignment.START,
-            controls=None,
-            wrap=True,
-            expand=True,
-            spacing=10,  # Spacing between buttons
-            run_spacing=10,  # Spacing between rows
-        )])
+        controls=[tags_control])
 
     image_popup = None
 
