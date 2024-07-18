@@ -11,6 +11,7 @@ from lib.png_data import PngData
 from lib.png_parser import PngParser
 from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
+import lib.file_helpers as file
 print("hi")
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=16)
@@ -45,9 +46,7 @@ def main(page: ft.Page):
                     json_data = json.load(json_file)
                 return PngData(**json_data)
             
-            filename = os.path.basename(image_path)
-            root, _ = os.path.splitext(filename)
-            json_filename = f"{root}.json"
+            json_filename = file.with_extension(image_path, "json")
             json_path = os.path.join(cache_dir, json_filename)
             if os.path.isfile(json_path):
                 return load_json(json_path)
@@ -92,19 +91,18 @@ def main(page: ft.Page):
         tags_view.update()
 
     def make_thumbnail(image_path):
-        thumbnail_path = os.path.join(cache_dir, os.path.basename(image_path))
+        thumbnail_path = os.path.join(cache_dir, file.with_extension(image_path, "jpg"))
         
         # Don't make a thumbnail if one is already in the cache
         if os.path.isfile(thumbnail_path):
             return thumbnail_path
         
-        print(f"Generating thumbnail: {os.path.basename(image_path)}")
+        print(f"Generating thumbnail for: {os.path.basename(image_path)}")
         with Image.open(image_path) as img:
             # Resize while maintaining aspect ratio
             img.thumbnail((256, 256))  
-            # Construct the thumbnail file path
             # Save the thumbnail
-            img.save(thumbnail_path)
+            img.save(thumbnail_path, format="JPEG", quality=85)
             return thumbnail_path
 
     def add_to_gallery(image_path, thumbnail_path):
