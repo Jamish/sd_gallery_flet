@@ -20,7 +20,7 @@ import lib.image_helpers as imagez
 
 print("hi")
 
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=16)
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
 
 
 def main(page: ft.Page):
@@ -100,57 +100,50 @@ def main(page: ft.Page):
         # Wait for results and collect image paths
         total = len(file_list)
         count = 0
-        for future in concurrent.futures.as_completed(futures):
-            image_path = future.result()
-            # thumbnail_path = make_thumbnail(image_path)
 
-            count += 1
-            print(f"Processed: {100*count/total}%")
-            # Each one of these is an add-and-refresh, which is very slow!
-            # I noticed that my network was done (all images were downloaded and parsed)
-            # and it was just adding one image at a time which took slower and slwoer and slower.
-            # Maybe I can add to gallery in batches?
-            add_to_gallery(image_path)
+        def process_completed_futures(futures):
+            nonlocal count
+            count += len(futures)
+            print(f"Processing: {100*count/total}%")
+            
+            image_paths = [f.result() for f in futures]
+            add_to_gallery(image_paths)
+        
+        batch_size = 32
+        completed_futures = []
+        for future in concurrent.futures.as_completed(futures):
+            completed_futures.append(future)
+            if len(completed_futures) >= batch_size:
+                print("Adding batch to gallery:")
+                process_completed_futures(completed_futures)
+                completed_futures.clear()
+        if completed_futures:
+            process_completed_futures(completed_futures)
+        
+
+            
 
         # Update tags when everything is loaded
         tags = tag_cache.get_all()
         tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
         tags_view.controls = tag_buttons
         tags_view.update()
-        
-        # filename = file_list[-1]
-        # png_data = image_cache.get(os.path.join(dir_path, filename))
-        # image = Image.open(os.path.join(dir_path, filename))
 
-        # database.upsert(CacheEntry(filename=os.path.basename(filename), png_data=png_data, thumbnail=image))
 
-    def make_thumbnail(image_path):
-        thumbnail_path = os.path.join(cache_dir, file.with_extension(image_path, "jpg"))
-        
-        # Don't make a thumbnail if one is already in the cache
-        if os.path.isfile(thumbnail_path):
-            return thumbnail_path
-        
-        print(f"Generating thumbnail for: {os.path.basename(image_path)}")
-        with Image.open(image_path) as img:
-            # Resize while maintaining aspect ratio
-            img.thumbnail((256, 256))  
-            # Save the thumbnail
-            img.save(thumbnail_path, format="JPEG", quality=85)
-            return thumbnail_path
 
-    def add_to_gallery(image_path):
-        png_data = image_cache.get(image_path)
-        entry = ft.Container(
-            on_click=partial(create_image_popup, image_path),
-            content=ft.Image(
-                src_base64=png_data.thumbnail_base64, 
-                fit=ft.ImageFit.COVER,
-                key=image_path,
-                border_radius=ft.border_radius.all(5)
-                )
-        )
-        image_grid.controls.append(entry)
+    def add_to_gallery(image_paths):
+        for image_path in image_paths:
+            png_data = image_cache.get(image_path)
+            entry = ft.Container(
+                on_click=partial(create_image_popup, image_path),
+                content=ft.Image(
+                    src_base64=png_data.thumbnail_base64, 
+                    fit=ft.ImageFit.COVER,
+                    key=image_path,
+                    border_radius=ft.border_radius.all(5)
+                    )
+            )
+            image_grid.controls.append(entry)
         page.update()
 
     def load_gallery(image_paths):

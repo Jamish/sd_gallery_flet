@@ -37,7 +37,6 @@ class Database:
                 #     cursor.execute("INSERT INTO images VALUES (?, ?, ?)", (os.path.basename(image_path), thumbnail_data, metadata))
 
     def get(self, filename: str) -> PngData:
-         print(f"Fetching from database: {filename}")
          with closing(sqlite3.connect(self.database_path)) as connection:
             with closing(connection.cursor()) as cursor:
                 rows = cursor.execute("SELECT filename, metadata FROM images WHERE filename = ?", (filename,)).fetchall()
