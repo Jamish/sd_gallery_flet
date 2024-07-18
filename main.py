@@ -34,7 +34,6 @@ def main(page: ft.Page):
     database.try_create_database()
 
     page.title = "Image Browser"
-
     
     def on_keyboard(e: ft.KeyboardEvent):
         if e.key == "Escape":
@@ -46,44 +45,25 @@ def main(page: ft.Page):
         load_images_from_directory(e.path)
 
     def load_images_from_directory(dir_path):
-        def get_png_data(image_path) -> PngData:
-            def save_json(png_data: PngData, json_path):
-                json_data = asdict(png_data)
-                with open(json_path, "w") as json_file:
-                    json.dump(json_data, json_file, indent=4)
-            def load_json(json_path: str) -> PngData:
-                with open(json_path, "r") as json_file:
-                    json_data = json.load(json_file)
-                return PngData(**json_data)
-            
-            json_filename = filez.with_extension(image_path, "json")
-            json_path = os.path.join(cache_dir, json_filename)
-            if os.path.isfile(json_path):
-                return load_json(json_path)
-            else:
-                png_data = png_parser.parse(image_path)
-                save_json(png_data, json_path)
-                return png_data
-        
         def process_image(filename):
             image_path = os.path.join(dir_path, filename)
-            # png_data = get_png_data(image_path)
 
-            # check sqlite3 and deflate if found
+            # Check the disk cache, otherwise parse it
             png_data = database.get(filename)
             if png_data is None:
                 png_data = png_parser.parse(image_path)
-                
+
+            # Save to memory cache                
             image_cache.set(image_path, png_data)
             for tag in png_data.tags:
                 tag_cache.add(tag, image_path)
 
+            # Save to disk cache
             cache_entry = DiskCacheEntry(
                 filename=filename, 
                 png_data=png_data
             )
             database.upsert(cache_entry)
-
 
             return image_path
         
@@ -100,15 +80,12 @@ def main(page: ft.Page):
         # Wait for results and collect image paths
         total = len(file_list)
         count = 0
-
         def process_completed_futures(futures):
             nonlocal count
             count += len(futures)
             print(f"Processing: {100*count/total}%")
-            
             image_paths = [f.result() for f in futures]
             add_to_gallery(image_paths)
-        
         batch_size = 32
         completed_futures = []
         for future in concurrent.futures.as_completed(futures):
@@ -119,17 +96,12 @@ def main(page: ft.Page):
                 completed_futures.clear()
         if completed_futures:
             process_completed_futures(completed_futures)
-        
-
-            
 
         # Update tags when everything is loaded
         tags = tag_cache.get_all()
         tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
         tags_view.controls = tag_buttons
         tags_view.update()
-
-
 
     def add_to_gallery(image_paths):
         for image_path in image_paths:
