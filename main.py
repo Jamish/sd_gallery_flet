@@ -7,14 +7,17 @@ from PIL import Image
 import json
 from dataclasses import asdict, field
 from functools import partial
+from lib.database import CacheEntry, Database
 from lib.png_data import PngData
 from lib.png_parser import PngParser
 from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
 import lib.file_helpers as file
+
 print("hi")
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=16)
+
 
 def main(page: ft.Page):
     cache_dir = ".cache"
@@ -23,9 +26,12 @@ def main(page: ft.Page):
     png_parser = PngParser()
     tag_cache = TagCache()
     image_cache = ImageCache()
+    database = Database(cache_dir, "data.sqlite3")
+    database.try_create_database()
 
     page.title = "Image Browser"
 
+    
     def on_keyboard(e: ft.KeyboardEvent):
         if e.key == "Escape":
             if image_popup != None:
@@ -89,6 +95,12 @@ def main(page: ft.Page):
         tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
         tags_view.controls = tag_buttons
         tags_view.update()
+        
+        filename = file_list[-1]
+        png_data = image_cache.get(os.path.join(dir_path, filename))
+        image = Image.open(os.path.join(dir_path, filename))
+
+        database.upsert(CacheEntry(filename=os.path.basename(filename), png_data=png_data, thumbnail=image))
 
     def make_thumbnail(image_path):
         thumbnail_path = os.path.join(cache_dir, file.with_extension(image_path, "jpg"))
