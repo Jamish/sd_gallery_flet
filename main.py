@@ -72,6 +72,7 @@ def main(page: ft.Page):
         # Submit image processing tasks to the thread pool
         futures = []
         file_list = os.listdir(dir_path)
+        print(f"Loading {len(file_list)} images")
         for filename in file_list:
             if filename.lower().endswith((".png")):
                 future = executor.submit(process_image, filename)
@@ -91,7 +92,6 @@ def main(page: ft.Page):
         for future in concurrent.futures.as_completed(futures):
             completed_futures.append(future)
             if len(completed_futures) >= batch_size:
-                print("Adding batch to gallery:")
                 process_completed_futures(completed_futures)
                 completed_futures.clear()
         if completed_futures:
@@ -106,6 +106,9 @@ def main(page: ft.Page):
     def add_to_gallery(image_paths):
         for image_path in image_paths:
             png_data = image_cache.get(image_path)
+            if png_data is None:
+                print(f"ERROR: png_data not found for {image_path}")
+                continue
             entry = ft.Container(
                 on_click=partial(create_image_popup, image_path),
                 content=ft.Image(
@@ -116,16 +119,13 @@ def main(page: ft.Page):
                     )
             )
             image_grid.controls.append(entry)
+        print(f"Added {len(image_paths)} images to gallery.")
         page.update()
 
+    # TODO This loads images over the network, load from cache instead...
     def load_gallery(image_paths):
         image_grid.controls.clear()  # Clear existing images
-        for image_path in image_paths:
-            entry = ft.Container(
-                on_click=partial(create_image_popup, image_path),
-                content=ft.Image(src=image_path, fit=ft.ImageFit.COVER, border_radius=ft.border_radius.all(5))
-            )
-            image_grid.controls.append(entry)
+        add_to_gallery(image_paths)
         rail.selected_index = 0
         load_subview(0)
 
