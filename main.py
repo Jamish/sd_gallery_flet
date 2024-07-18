@@ -134,7 +134,6 @@ def main(page: ft.Page):
 
     selected_tags = []
     def deselect_tag(e):
-        tag = e.control.data
         selected_tags = []
         filters_container.controls = selected_tags
         filters_container.update()
@@ -198,6 +197,14 @@ def main(page: ft.Page):
         ]
     )
 
+    async def update_tag_filter(e):
+        filter = e.control.value
+        tags = tag_cache.get_all()
+        matched_tags = [tag for tag in tags if filter in tag.name]
+        # TODO Dedupe this with the main tag creation logic
+        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in matched_tags]
+        tags_control.controls = tag_buttons
+        tags_view.update()
 
     tags_control = ft.Row(
         vertical_alignment=ft.CrossAxisAlignment.START,
@@ -212,7 +219,14 @@ def main(page: ft.Page):
         horizontal_alignment=ft.CrossAxisAlignment.START,
         scroll=ft.ScrollMode.ALWAYS,
         expand=True,
-        controls=[tags_control])
+        controls=[
+            ft.Container(height=10),
+            ft.TextField(label="Filter...", on_change=update_tag_filter),
+            tags_control
+        ])
+    
+    
+
 
     image_popup = None
 

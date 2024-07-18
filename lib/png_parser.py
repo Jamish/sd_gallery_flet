@@ -20,6 +20,31 @@ class PngParser:
             if search_string.lower() in node_type.lower() and not node_type in BLOCK_LIST:
                 return True
         return False
+    
+    def __normalize_tag(self, tag):
+        tag = tag.strip()
+
+        # Replace escaped parentheses with temporary characters
+        tag = tag.replace("\\(", "<").replace("\\)", ">")
+
+        # Remove modifiers (parentheses, brackets) and leading/trailing whitespace
+        tag = tag.replace("(", "")
+        tag = tag.replace(")", "")
+        tag = tag.replace("[", "")
+        tag = tag.replace("]", "")
+
+        # Convert underscores to spaces
+        tag = tag.replace("_", " ")
+
+        # Split by colon (:) and take the first part
+        tag = tag.split(":")[0]
+
+        # Restore parentheses if they were escaped
+        tag = tag.replace("<", "(").replace(">", ")")
+
+        tag = tag.strip() 
+
+        return tag
 
     def parse(self, filename: str) -> PngData:
         im = Image.open(filename)
@@ -99,7 +124,9 @@ class PngParser:
 
         # Split by newline and commas 
         tags = re.split(r"[,\n]+", positive_prompt.strip())
-        tags = [tag.strip() for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
+        tags = [self.__normalize_tag(tag) for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
+        tags = list(set(tags)) # unique
+        
         #print(f"Positive tags: {tags}")
         
         condensed_positive_prompt = positive_prompt.replace("\n", " ")
