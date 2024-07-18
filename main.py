@@ -50,8 +50,11 @@ def main(page: ft.Page):
 
             # Check the disk cache, otherwise parse it
             png_data = database.get(filename)
+            should_update_disk_cache = False
             if png_data is None:
+                print(".", end="")
                 png_data = png_parser.parse(image_path)
+                should_update_disk_cache = True
 
             # Save to memory cache                
             image_cache.set(image_path, png_data)
@@ -63,7 +66,8 @@ def main(page: ft.Page):
                 filename=filename, 
                 png_data=png_data
             )
-            database.upsert(cache_entry)
+            if (should_update_disk_cache):
+                database.upsert(cache_entry)
 
             return image_path
         
@@ -84,10 +88,10 @@ def main(page: ft.Page):
         def process_completed_futures(futures):
             nonlocal count
             count += len(futures)
-            print(f"Processing: {100*count/total}%")
+            print(f"\nProcessing: {100*count/total}%")
             image_paths = [f.result() for f in futures]
             add_to_gallery(image_paths)
-        batch_size = 32
+        batch_size = 64
         completed_futures = []
         for future in concurrent.futures.as_completed(futures):
             completed_futures.append(future)
@@ -122,7 +126,6 @@ def main(page: ft.Page):
         print(f"Added {len(image_paths)} images to gallery.")
         page.update()
 
-    # TODO This loads images over the network, load from cache instead...
     def load_gallery(image_paths):
         image_grid.controls.clear()  # Clear existing images
         add_to_gallery(image_paths)

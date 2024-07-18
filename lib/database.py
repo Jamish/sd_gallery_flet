@@ -27,14 +27,7 @@ class Database:
         
         with closing(sqlite3.connect(self.database_path)) as connection:
             with closing(connection.cursor()) as cursor:
-                cursor.execute("CREATE TABLE images (filename TEXT, metadata BLOB)")
-
-                # for image_path, thumbnail_path in zip(image_paths, thumbnail_paths):
-                #     with open(thumbnail_path, "rb") as f:
-                #         thumbnail_data = f.read()
-                #     with open(change_extension_to_json(image_path), "r") as f:
-                #         metadata = f.read()
-                #     cursor.execute("INSERT INTO images VALUES (?, ?, ?)", (os.path.basename(image_path), thumbnail_data, metadata))
+                cursor.execute("CREATE TABLE images (filename TEXT PRIMARY KEY, metadata BLOB)")
 
     def get(self, filename: str) -> PngData:
          with closing(sqlite3.connect(self.database_path)) as connection:
@@ -50,12 +43,5 @@ class Database:
 
         with closing(sqlite3.connect(self.database_path)) as connection:
             with closing(connection.cursor()) as cursor:
-                cursor.execute("INSERT INTO images VALUES (?, ?)", (data.filename, metadata))
+                cursor.execute("REPLACE INTO images VALUES (?, ?)", (data.filename, metadata))
                 connection.commit()
-
-        # print("wait)")
-        # with closing(sqlite3.connect(self.database_path)) as connection:
-        #     with closing(connection.cursor()) as cursor:
-        #         rows = cursor.execute("SELECT filename, thumbnail, metadata FROM images").fetchall()
-        #         print(rows)
-

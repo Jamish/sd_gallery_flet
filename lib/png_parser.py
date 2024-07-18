@@ -22,7 +22,6 @@ class PngParser:
         return False
 
     def parse(self, filename: str) -> PngData:
-        print(f"Parsing metadata: {os.path.basename(filename)}")
         im = Image.open(filename)
         im.load()
 
