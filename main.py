@@ -1,6 +1,7 @@
 
 import base64
 from io import BytesIO
+from typing import List
 import pyperclip
 import flet as ft
 import os
@@ -17,6 +18,7 @@ from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
 import lib.file_helpers as filez
 import lib.image_helpers as imagez
+from lib.tag_data import TagData
 
 print("hi")
 
@@ -103,9 +105,7 @@ def main(page: ft.Page):
 
         # Update tags when everything is loaded
         tags = tag_cache.get_all()
-        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
-        tags_control.controls = tag_buttons
-        tags_view.update()
+        show_tag_buttons(tags)
 
     def add_to_gallery(image_paths):
         for image_path in image_paths:
@@ -197,14 +197,23 @@ def main(page: ft.Page):
         ]
     )
 
+    def show_tag_buttons(tags: List[TagData]):
+        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
+        tags_control.controls = tag_buttons
+        tags_view.update()
+
     async def update_tag_filter(e):
         filter = e.control.value
         tags = tag_cache.get_all()
         matched_tags = [tag for tag in tags if filter in tag.name]
-        # TODO Dedupe this with the main tag creation logic
-        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in matched_tags]
-        tags_control.controls = tag_buttons
-        tags_view.update()
+        show_tag_buttons(matched_tags)
+        
+    def clear_filter(e):
+        nonlocal tag_filter_textfield
+        tag_filter_textfield.value = ""
+        show_tag_buttons(tag_cache.get_all())
+        page.update()
+
 
     tags_control = ft.Row(
         vertical_alignment=ft.CrossAxisAlignment.START,
@@ -214,6 +223,7 @@ def main(page: ft.Page):
         spacing=10,  # Spacing between buttons
         run_spacing=10,  # Spacing between rows
     )
+    tag_filter_textfield =  ft.TextField(label="Filter...", on_change=update_tag_filter)
     tags_view = ft.Column(
         alignment=ft.MainAxisAlignment.START,
         horizontal_alignment=ft.CrossAxisAlignment.START,
@@ -221,7 +231,15 @@ def main(page: ft.Page):
         expand=True,
         controls=[
             ft.Container(height=10),
-            ft.TextField(label="Filter...", on_change=update_tag_filter),
+            ft.Row([
+                tag_filter_textfield,
+                ft.IconButton(
+                    icon=ft.icons.CLEAR_ROUNDED,
+                    icon_color="blue400",
+                    icon_size=20,
+                    on_click=clear_filter
+                ),
+            ]),
             tags_control
         ])
     

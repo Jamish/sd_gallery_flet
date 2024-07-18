@@ -15,7 +15,9 @@ class TagCache:
         tag = tag.strip().lower()  
         return self.__tag_index.get(tag, [])  
     
-        
+    def keys(self) -> List[str]:
+        return list(self.__tag_index.keys())
+    
     def get_all(self) -> List[TagData]:
         tags = list(self.__tag_index.values())
         tags.sort(key=lambda x: x.count(), reverse=True)
