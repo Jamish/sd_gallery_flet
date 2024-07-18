@@ -8,10 +8,9 @@ from lib.png_data import PngData
 from PIL import Image
 
 @dataclass
-class CacheEntry:
+class DiskCacheEntry:
     filename: str
     png_data: PngData
-    thumbnail: Image
 
 
 class Database:
@@ -28,7 +27,7 @@ class Database:
         
         with closing(sqlite3.connect(self.database_path)) as connection:
             with closing(connection.cursor()) as cursor:
-                cursor.execute("CREATE TABLE images (filename TEXT, thumbnail BLOB, metadata TEXT)")
+                cursor.execute("CREATE TABLE images (filename TEXT, metadata BLOB)")
 
                 # for image_path, thumbnail_path in zip(image_paths, thumbnail_paths):
                 #     with open(thumbnail_path, "rb") as f:
@@ -37,19 +36,17 @@ class Database:
                 #         metadata = f.read()
                 #     cursor.execute("INSERT INTO images VALUES (?, ?, ?)", (os.path.basename(image_path), thumbnail_data, metadata))
 
-    def upsert(self, data: CacheEntry):
-        print(data)
-        thumbnail_bytes = data.thumbnail.tobytes("xbm", "rgb")
-        print(thumbnail_bytes)
+    def upsert(self, data: DiskCacheEntry):
         metadata = json.dumps(asdict(data.png_data), indent=4)
 
         with closing(sqlite3.connect(self.database_path)) as connection:
             with closing(connection.cursor()) as cursor:
-                cursor.execute("INSERT INTO images VALUES (?, ?, ?)", (data.filename, metadata, thumbnail_bytes))
+                cursor.execute("INSERT INTO images VALUES (?, ?)", (data.filename, metadata))
                 connection.commit()
 
-        print("wait)")
-        with closing(sqlite3.connect(self.database_path)) as connection:
-            with closing(connection.cursor()) as cursor:
-                rows = cursor.execute("SELECT filename, thumbnail, metadata FROM images").fetchall()
-                print(rows)
+        # print("wait)")
+        # with closing(sqlite3.connect(self.database_path)) as connection:
+        #     with closing(connection.cursor()) as cursor:
+        #         rows = cursor.execute("SELECT filename, thumbnail, metadata FROM images").fetchall()
+        #         print(rows)
+

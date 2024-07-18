@@ -1,4 +1,6 @@
 
+import base64
+from io import BytesIO
 import pyperclip
 import flet as ft
 import os
@@ -7,12 +9,14 @@ from PIL import Image
 import json
 from dataclasses import asdict, field
 from functools import partial
-from lib.database import CacheEntry, Database
+from lib.database import DiskCacheEntry, Database
+
 from lib.png_data import PngData
 from lib.png_parser import PngParser
 from lib.image_cache import ImageCache
 from lib.tag_cache import TagCache
-import lib.file_helpers as file
+import lib.file_helpers as filez
+import lib.image_helpers as imagez
 
 print("hi")
 
@@ -52,7 +56,7 @@ def main(page: ft.Page):
                     json_data = json.load(json_file)
                 return PngData(**json_data)
             
-            json_filename = file.with_extension(image_path, "json")
+            json_filename = filez.with_extension(image_path, "json")
             json_path = os.path.join(cache_dir, json_filename)
             if os.path.isfile(json_path):
                 return load_json(json_path)
@@ -63,11 +67,23 @@ def main(page: ft.Page):
         
         def process_image(filename):
             image_path = os.path.join(dir_path, filename)
-            #png_data = png_parser.parse(image_path)
-            png_data = get_png_data(image_path)
+            # png_data = get_png_data(image_path)
+
+            # check sqlite3 and deflate if found
+            png_data = png_parser.parse(image_path)
+                
+
             image_cache.set(image_path, png_data)
             for tag in png_data.tags:
                 tag_cache.add(tag, image_path)
+
+            cache_entry = DiskCacheEntry(
+                filename=filename, 
+                png_data=png_data
+            )
+            database.upsert(cache_entry)
+
+
             return image_path
         
         image_grid.controls.clear()  # Clear existing images
@@ -85,10 +101,11 @@ def main(page: ft.Page):
         count = 0
         for future in concurrent.futures.as_completed(futures):
             image_path = future.result()
-            thumbnail_path = make_thumbnail(image_path)
+            # thumbnail_path = make_thumbnail(image_path)
+
             count += 1
             print(f"Processed: {100*count/total}%")
-            add_to_gallery(image_path, thumbnail_path)
+            add_to_gallery(image_path)
 
         # Update tags when everything is loaded
         tags = tag_cache.get_all()
@@ -96,11 +113,11 @@ def main(page: ft.Page):
         tags_view.controls = tag_buttons
         tags_view.update()
         
-        filename = file_list[-1]
-        png_data = image_cache.get(os.path.join(dir_path, filename))
-        image = Image.open(os.path.join(dir_path, filename))
+        # filename = file_list[-1]
+        # png_data = image_cache.get(os.path.join(dir_path, filename))
+        # image = Image.open(os.path.join(dir_path, filename))
 
-        database.upsert(CacheEntry(filename=os.path.basename(filename), png_data=png_data, thumbnail=image))
+        # database.upsert(CacheEntry(filename=os.path.basename(filename), png_data=png_data, thumbnail=image))
 
     def make_thumbnail(image_path):
         thumbnail_path = os.path.join(cache_dir, file.with_extension(image_path, "jpg"))
@@ -117,11 +134,12 @@ def main(page: ft.Page):
             img.save(thumbnail_path, format="JPEG", quality=85)
             return thumbnail_path
 
-    def add_to_gallery(image_path, thumbnail_path):
+    def add_to_gallery(image_path):
+        png_data = image_cache.get(image_path)
         entry = ft.Container(
             on_click=partial(create_image_popup, image_path),
             content=ft.Image(
-                src=thumbnail_path, 
+                src_base64=png_data.thumbnail_base64, 
                 fit=ft.ImageFit.COVER,
                 key=image_path,
                 border_radius=ft.border_radius.all(5)

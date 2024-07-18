@@ -8,3 +8,4 @@ class PngData:
     negative_prompt: str = ""
     checkpoint: str = ""
     loras: list[str] = None
+    thumbnail_base64: str = ""

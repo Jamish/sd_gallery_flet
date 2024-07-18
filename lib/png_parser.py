@@ -4,7 +4,7 @@ from PIL import Image
 import json
 import os
 import re
-
+import lib.image_helpers as imagez
 NODE_NAMES_SAMPLER = ["KSampler"]
 NODE_NAMES_MODEL = ["CheckpointLoader"]
 NODE_NAMES_CLIP = ["CLIPTextEncode", "CLIP"]
@@ -25,6 +25,7 @@ class PngParser:
         print(f"Parsing metadata: {os.path.basename(filename)}")
         im = Image.open(filename)
         im.load()
+
         workflow = im.info['workflow']
         # print(workflow)
 
@@ -135,6 +136,8 @@ class PngParser:
 
         display_text = f"{display_text}POSITIVE:\n{condensed_positive_prompt}\n\n"
         display_text = f"{display_text}NEGATIVE:\n{condensed_negative_prompt}\n"
+        
+        thumbnail_base64 = imagez.make_thumbnail_base64(im)
 
         png_data = PngData(
             filename=filename,
@@ -142,7 +145,8 @@ class PngParser:
             positive_prompt=positive_prompt,
             negative_prompt=negative_prompt,
             checkpoint=model_name,
-            loras=loras
+            loras=loras,
+            thumbnail_base64 = thumbnail_base64,
         )
 
         return png_data
