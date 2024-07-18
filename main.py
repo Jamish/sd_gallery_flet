@@ -250,12 +250,9 @@ def main(page: ft.Page):
 
     def close_image_popup(e):
         nonlocal image_popup
-        main_view.visible=True
-        gallery_key_to_scroll_to = image_popup.data
         image_popup.visible = False
         image_popup = None
         page.update()
-        image_grid.scroll_to(key=gallery_key_to_scroll_to)
 
 
     def create_image_popup(image_path, e):
@@ -303,21 +300,23 @@ def main(page: ft.Page):
         if image_popup == None:
             should_add_popup = True
 
-        image_popup = ft.Stack([
-            content,
-            ft.Row([
-                ft.FloatingActionButton(
-                    mini=True,
-                    icon=ft.icons.CLEAR_ROUNDED,
-                    on_click=close_image_popup,
-                )
-            ],
-            alignment=ft.MainAxisAlignment.END)
-        ], expand=True, data=image_path)
+        image_popup = ft.Container(
+            ft.Stack([
+                content,
+                ft.Row([
+                    ft.FloatingActionButton(
+                        mini=True,
+                        icon=ft.icons.CLEAR_ROUNDED,
+                        on_click=close_image_popup,
+                    )
+                ],
+                alignment=ft.MainAxisAlignment.END)
+            ], expand=True, data=image_path),
+            bgcolor=ft.colors.BACKGROUND
+        )
 
         if should_add_popup:
-            page.add(image_popup)
-        main_view.visible = False
+            page_stack.controls.append(image_popup)
         page.update()
         
 
@@ -385,7 +384,8 @@ def main(page: ft.Page):
         ],
         expand=True,
     )
-    page.add(main_view)
+    page_stack = ft.Stack([main_view], expand=True)
+    page.add(page_stack)
     load_subview(0)
 
 
