@@ -126,6 +126,7 @@ class PngParser:
         tags = re.split(r"[,\n]+", positive_prompt.strip())
         tags = [self.__normalize_tag(tag) for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
         tags = list(set(tags)) # unique
+
         
         #print(f"Positive tags: {tags}")
         
@@ -164,6 +165,12 @@ class PngParser:
         display_text = f"{display_text}NEGATIVE:\n{condensed_negative_prompt}\n"
         
         thumbnail_base64 = imagez.make_thumbnail_base64(im)
+
+        model_name_trimmed = model_name.split("\\")[-1]
+        tags.append(f"model:{model_name_trimmed}")
+        for lora in loras:
+            lora_name_trimmed = lora.split("\\")[-1]
+            tags.append(f"lora:{lora_name_trimmed}")
 
         png_data = PngData(
             filename=filename,
