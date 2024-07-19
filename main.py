@@ -137,13 +137,32 @@ def main(page: ft.Page):
     selected_tag_buttons = []
     selected_files = []
     def deselect_tag(e):
-        selected_tag_buttons.clear()
-        selected_files.clear()
-        filters_container.update()
-        paths = list(map(lambda image: image.filename, image_cache.get_all()));
-        print(f"image cache length is {len(image_cache.get_all())}")
-        print(f"Image path is {paths}")
-        load_gallery(paths)
+        nonlocal selected_tag_buttons
+        nonlocal selected_files
+        tag = e.control.data
+        # Remove the clicked button from the filters list
+        for button in selected_tag_buttons:
+            print(f"Current Buttons: {button.data.name}")
+            print(f"looking for: {tag.name}")
+        selected_tag_buttons = [button for button in selected_tag_buttons if button.data.name != tag.name]
+        
+        all_files = list(map(lambda image: image.filename, image_cache.get_all()));
+        if len(selected_tag_buttons) == 0:
+            # Last filter removed.
+            selected_tag_buttons.clear()
+            selected_files.clear()
+            filters_container.controls = selected_tag_buttons
+            filters_container.update()
+            load_gallery(all_files)
+
+        else:
+            # Re-filter the master file list against each seleted tag 
+            selected_tags = [button.data for button in selected_tag_buttons]
+            for tag in selected_tags:
+                selected_files = [file for file in all_files if file in tag.files]
+            filters_container.controls = selected_tag_buttons
+            filters_container.update()
+            load_gallery(selected_files)
 
     def select_tag(e):
         nonlocal selected_files
