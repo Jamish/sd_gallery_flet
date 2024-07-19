@@ -134,10 +134,11 @@ def main(page: ft.Page):
         rail.selected_index = 0
         load_subview(0)
 
-    selected_tags = []
+    selected_tag_buttons = []
+    selected_files = []
     def deselect_tag(e):
-        selected_tags = []
-        filters_container.controls = selected_tags
+        selected_tag_buttons.clear()
+        selected_files.clear()
         filters_container.update()
         paths = list(map(lambda image: image.filename, image_cache.get_all()));
         print(f"image cache length is {len(image_cache.get_all())}")
@@ -145,19 +146,26 @@ def main(page: ft.Page):
         load_gallery(paths)
 
     def select_tag(e):
+        nonlocal selected_files
         tag = e.control.data
         print(f"Clicked tag {tag.name}")
-        selected_tags = [ft.ElevatedButton(f"{tag.name}", icon=ft.icons.CLEAR_ROUNDED, on_click=deselect_tag, data=tag)]
-        filters_container.controls = selected_tags
+        selected_tag_buttons.append(ft.ElevatedButton(f"{tag.name}", icon=ft.icons.CLEAR_ROUNDED, on_click=deselect_tag, data=tag))
+        print(f"Seleted tags: {len(selected_tag_buttons)}")
+        filters_container.controls = selected_tag_buttons
         filters_container.update()
-        load_gallery(tag.files)
+
+        if len(selected_tag_buttons) == 1:
+            selected_files.extend(tag.files)
+        else:
+            selected_files = [file for file in selected_files if file in tag.files]
+        load_gallery(selected_files)
 
     pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
     page.overlay.append(pick_files_dialog)
 
     filters_container = ft.Row(
         vertical_alignment=ft.CrossAxisAlignment.START,
-        controls=selected_tags,
+        controls=selected_tag_buttons,
         wrap=True,
         spacing=10,  # Spacing between buttons
         run_spacing=10,  # Spacing between rows
