@@ -30,7 +30,9 @@ def main(page: ft.Page):
     os.makedirs(cache_dir, exist_ok=True)
 
     png_parser = PngParser()
+
     tag_cache = TagCache()
+
     image_cache = ImageCache()
     database = Database(cache_dir, "data.sqlite3")
     database.try_create_database()
@@ -198,8 +200,17 @@ def main(page: ft.Page):
     )
 
     def show_tag_buttons(tags: List[TagData]):
+        tag_controls["models"].controls.clear()
+        tag_controls["loras"].controls.clear()
+        tag_controls["tags"].controls.clear()
         tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
-        tags_control.controls = tag_buttons
+        for tag_button in tag_buttons:
+            if tag_button.data.name.startswith("model:"):
+                tag_controls["models"].controls.append(tag_button)
+            elif tag_button.data.name.startswith("lora:"):
+                tag_controls["loras"].controls.append(tag_button)
+            else:
+                tag_controls["tags"].controls.append(tag_button)
         tags_view.update()
 
     async def update_tag_filter(e):
@@ -215,19 +226,26 @@ def main(page: ft.Page):
         page.update()
 
 
-    tags_control = ft.Row(
-        vertical_alignment=ft.CrossAxisAlignment.START,
-        controls=None,
-        wrap=True,
-        expand=True,
-        spacing=10,  # Spacing between buttons
-        run_spacing=10,  # Spacing between rows
-    )
+    def make_tags_button_row():
+        return ft.Row(
+            vertical_alignment=ft.CrossAxisAlignment.START,
+            controls=None,
+            wrap=True,
+            expand=True,
+            scroll=ft.ScrollMode.ALWAYS,
+            spacing=10,  # Spacing between buttons
+            run_spacing=10,  # Spacing between rows
+        )
+    tag_controls = {
+        "models": make_tags_button_row(),
+        "loras": make_tags_button_row(),
+        "tags": make_tags_button_row(),
+    }
+    
     tag_filter_textfield =  ft.TextField(label="Filter...", on_change=update_tag_filter)
     tags_view = ft.Column(
         alignment=ft.MainAxisAlignment.START,
         horizontal_alignment=ft.CrossAxisAlignment.START,
-        scroll=ft.ScrollMode.ALWAYS,
         expand=True,
         controls=[
             ft.Container(height=10),
@@ -240,7 +258,26 @@ def main(page: ft.Page):
                     on_click=clear_filter
                 ),
             ]),
-            tags_control
+            # TODO Move these to a collapsible section?
+            ft.Tabs(
+                selected_index=0,
+                animation_duration=100,
+                expand=True,
+                tabs=[
+                    ft.Tab(
+                        text="Tags",
+                        content=tag_controls["tags"],
+                    ),
+                    ft.Tab(
+                        text="Loras",
+                        content=tag_controls["loras"],
+                    ),
+                    ft.Tab(
+                        text="Models",
+                        content=tag_controls["models"],
+                    ),
+                ],
+            )
         ])
     
     
