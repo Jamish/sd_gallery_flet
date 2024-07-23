@@ -9,3 +9,4 @@ class PngData:
     checkpoint: str = ""
     loras: list[str] = None
     thumbnail_base64: str = ""
+    favorite: bool = False

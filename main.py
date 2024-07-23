@@ -48,6 +48,13 @@ def main(page: ft.Page):
         print(f"Selected path {e.path}")
         load_images_from_directory(e.path)
 
+    def save_png_data(png_data: PngData):
+        cache_entry = DiskCacheEntry(
+            filename=png_data.filename, 
+            png_data=png_data
+        )
+        database.upsert(cache_entry)
+
     def load_images_from_directory(dir_path):
         def process_image(filename):
             image_path = os.path.join(dir_path, filename)
@@ -66,12 +73,8 @@ def main(page: ft.Page):
                 tag_cache.add(tag, image_path)
 
             # Save to disk cache
-            cache_entry = DiskCacheEntry(
-                filename=filename, 
-                png_data=png_data
-            )
             if (should_update_disk_cache):
-                database.upsert(cache_entry)
+                save_png_data(png_data)
 
             return image_path
         
@@ -318,9 +321,25 @@ def main(page: ft.Page):
         image_popup = None
         page.update()
 
+    favorites_button = None
+
+    def toggle_favorite(e):
+        image_data = e.control.data
+        image_data.favorite = not image_data.favorite
+
+        favorite_icon = ft.icons.FAVORITE_BORDER
+        if image_data.favorite:
+            favorite_icon = ft.icons.FAVORITE
+        save_png_data(image_data)
+
+        favorites_button.icon = favorite_icon
+        favorites_button.update()
+        page.update()
+
 
     def create_image_popup(image_path, e):
         nonlocal image_popup
+        nonlocal favorites_button
         
         image_data = image_cache.get(image_path)
         lora_fields = []
@@ -360,21 +379,34 @@ def main(page: ft.Page):
             ]
         )
 
+        favorite_icon = ft.icons.FAVORITE_BORDER
+        if image_data.favorite:
+            favorite_icon = ft.icons.FAVORITE
+
         should_add_popup = False
         if image_popup == None:
             should_add_popup = True
+
+        favorites_button = ft.IconButton(
+            icon=favorite_icon,
+            on_click=toggle_favorite,
+            data=image_data
+        )
 
         image_popup = ft.Container(
             ft.Stack([
                 content,
                 ft.Row([
+                    favorites_button,
                     ft.FloatingActionButton(
                         mini=True,
                         icon=ft.icons.CLEAR_ROUNDED,
                         on_click=close_image_popup,
                     )
-                ],
-                alignment=ft.MainAxisAlignment.END)
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                # ft.Row([
+                    
+                # ], alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.END, expand=True)
             ], expand=True, data=image_path),
             bgcolor=ft.colors.BACKGROUND
         )
