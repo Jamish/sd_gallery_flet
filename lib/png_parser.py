@@ -46,8 +46,8 @@ class PngParser:
 
         return tag
 
-    def parse(self, filename: str) -> PngData:
-        im = Image.open(filename)
+    def parse(self, image_path: str) -> PngData:
+        im = Image.open(image_path)
         im.load()
 
         workflow = im.info['workflow']
@@ -118,7 +118,7 @@ class PngParser:
             positive_prompt = clip_nodes[0]['widgets_values'][1]
             negative_prompt = clip_nodes[0]['widgets_values'][2]
         else:
-            raise Exception(f"Found more than 2 CLIP nodes for file {filename}.")
+            raise Exception(f"Found more than 2 CLIP nodes for file {image_path}.")
 
         # pyperclip.copy(prompt)
 
@@ -173,7 +173,7 @@ class PngParser:
             tags.append(f"lora:{lora_name_trimmed}")
 
         png_data = PngData(
-            filename=filename,
+            image_path=image_path,
             tags=tags,
             positive_prompt=positive_prompt,
             negative_prompt=negative_prompt,

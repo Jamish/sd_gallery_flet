@@ -9,7 +9,7 @@ from PIL import Image
 
 @dataclass
 class DiskCacheEntry:
-    filename: str
+    image_path: str
     png_data: PngData
 
 
@@ -27,12 +27,12 @@ class Database:
         
         with closing(sqlite3.connect(self.database_path)) as connection:
             with closing(connection.cursor()) as cursor:
-                cursor.execute("CREATE TABLE images (filename TEXT PRIMARY KEY, metadata BLOB)")
+                cursor.execute("CREATE TABLE images (image_path TEXT PRIMARY KEY, metadata BLOB)")
 
-    def get(self, filename: str) -> PngData:
+    def get(self, image_path: str) -> PngData:
          with closing(sqlite3.connect(self.database_path)) as connection:
             with closing(connection.cursor()) as cursor:
-                rows = cursor.execute("SELECT filename, metadata FROM images WHERE filename = ?", (filename,)).fetchall()
+                rows = cursor.execute("SELECT image_path, metadata FROM images WHERE image_path = ?", (image_path,)).fetchall()
                 if len(rows) == 0:
                     return None
                 json_metadata = json.loads(rows[0][1])
@@ -43,5 +43,5 @@ class Database:
 
         with closing(sqlite3.connect(self.database_path)) as connection:
             with closing(connection.cursor()) as cursor:
-                cursor.execute("REPLACE INTO images VALUES (?, ?)", (data.filename, metadata))
+                cursor.execute("REPLACE INTO images VALUES (?, ?)", (data.image_path, metadata))
                 connection.commit()

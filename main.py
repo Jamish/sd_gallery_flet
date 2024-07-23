@@ -40,9 +40,13 @@ def main(page: ft.Page):
     page.title = "Image Browser"
     
     def on_keyboard(e: ft.KeyboardEvent):
+        print(f"Key Pressed: {e.key}")
         if e.key == "Escape":
             if image_popup != None:
                 close_image_popup(None)
+        if e.key == "F":
+            if image_popup != None:
+                toggle_favorite(image_popup.data, None)
 
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
@@ -50,9 +54,10 @@ def main(page: ft.Page):
 
     def save_png_data(png_data: PngData):
         cache_entry = DiskCacheEntry(
-            filename=png_data.filename, 
+            image_path=png_data.image_path, 
             png_data=png_data
         )
+        print(f"Saving {png_data.image_path}")
         database.upsert(cache_entry)
 
     def load_images_from_directory(dir_path):
@@ -60,7 +65,7 @@ def main(page: ft.Page):
             image_path = os.path.join(dir_path, filename)
 
             # Check the disk cache, otherwise parse it
-            png_data = database.get(filename)
+            png_data = database.get(image_path)
             should_update_disk_cache = False
             if png_data is None:
                 print(".", end="")
@@ -112,22 +117,28 @@ def main(page: ft.Page):
         tags = tag_cache.get_all()
         show_tag_buttons(tags)
 
+    def create_image_gallery_entry(png_data: PngData):
+        image_path=png_data.image_path
+        return ft.Container(
+            on_click=partial(create_image_popup, image_path),
+            content=ft.Image(
+                src_base64=png_data.thumbnail_base64, 
+                fit=ft.ImageFit.COVER,
+                key=image_path,
+                border_radius=ft.border_radius.all(5)
+                ),
+            data=image_path
+        )
+
     def add_to_gallery(image_paths):
         for image_path in image_paths:
             png_data = image_cache.get(image_path)
             if png_data is None:
                 print(f"ERROR: png_data not found for {image_path}")
                 continue
-            entry = ft.Container(
-                on_click=partial(create_image_popup, image_path),
-                content=ft.Image(
-                    src_base64=png_data.thumbnail_base64, 
-                    fit=ft.ImageFit.COVER,
-                    key=image_path,
-                    border_radius=ft.border_radius.all(5)
-                    )
-            )
-            image_grid.controls.append(entry)
+            image_grid.controls.append(create_image_gallery_entry(png_data))
+            if png_data.favorite:
+                image_grid_favorites.controls.append(create_image_gallery_entry(png_data))
         print(f"Added {len(image_paths)} images to gallery.")
         page.update()
 
@@ -149,7 +160,7 @@ def main(page: ft.Page):
             print(f"looking for: {tag.name}")
         selected_tag_buttons = [button for button in selected_tag_buttons if button.data.name != tag.name]
         
-        all_files = list(map(lambda image: image.filename, image_cache.get_all()));
+        all_files = list(map(lambda image: image.image_path, image_cache.get_all()));
         if len(selected_tag_buttons) == 0:
             # Last filter removed.
             selected_tag_buttons.clear()
@@ -204,13 +215,27 @@ def main(page: ft.Page):
 
     gallery_view = ft.Container(
         expand=True, 
-        content=ft.Column(
-        [
+        content=ft.Column([
             filters_container,
             ft.Divider(height=1),
             image_grid
-        ]
+        ])
     )
+
+    image_grid_favorites = ft.GridView(
+        expand=True,
+        runs_count=5,  # Adjust columns as needed
+        max_extent=256,  # Adjust maximum image size as needed
+        spacing=5,
+        run_spacing=5,
+        padding=ft.padding.only(right=15),
+    )
+
+    favorites_view = ft.Container(
+        expand=True, 
+        content=ft.Column([
+            image_grid_favorites
+        ])
     )
     
     
@@ -323,8 +348,7 @@ def main(page: ft.Page):
 
     favorites_button = None
 
-    def toggle_favorite(e):
-        image_data = e.control.data
+    def toggle_favorite(image_data: PngData, e):
         image_data.favorite = not image_data.favorite
 
         favorite_icon = ft.icons.FAVORITE_BORDER
@@ -333,6 +357,15 @@ def main(page: ft.Page):
         save_png_data(image_data)
 
         favorites_button.icon = favorite_icon
+
+        if image_data.favorite:
+            image_grid_favorites.controls.append(create_image_gallery_entry(image_data))
+        else:
+            for i, entry in enumerate(image_grid_favorites.controls):
+                if entry.data == image_data.image_path:
+                    del image_grid_favorites.controls[i]
+
+        image_grid_favorites.update()
         favorites_button.update()
         page.update()
 
@@ -389,8 +422,7 @@ def main(page: ft.Page):
 
         favorites_button = ft.IconButton(
             icon=favorite_icon,
-            on_click=toggle_favorite,
-            data=image_data
+            on_click=partial(toggle_favorite, image_data),
         )
 
         image_popup = ft.Container(
@@ -408,7 +440,8 @@ def main(page: ft.Page):
                     
                 # ], alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.END, expand=True)
             ], expand=True, data=image_path),
-            bgcolor=ft.colors.BACKGROUND
+            bgcolor=ft.colors.BACKGROUND,
+            data=image_data
         )
 
         if should_add_popup:
@@ -419,7 +452,7 @@ def main(page: ft.Page):
 
 
 
-    subviews = [gallery_view, tags_view, temp_view]
+    subviews = [gallery_view, tags_view, favorites_view, temp_view]
 
 
     rail = ft.NavigationRail(
@@ -469,6 +502,7 @@ def main(page: ft.Page):
         for subview in subviews:
             subview.visible = False
         get_page(index).visible = True
+
         subview.update()
         page.update()
 
