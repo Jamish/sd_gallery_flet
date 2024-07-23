@@ -57,7 +57,6 @@ def main(page: ft.Page):
             image_path=png_data.image_path, 
             png_data=png_data
         )
-        print(f"Saving {png_data.image_path}")
         database.upsert(cache_entry)
 
     def load_images_from_directory(dir_path):
@@ -213,12 +212,18 @@ def main(page: ft.Page):
         padding=ft.padding.only(right=15),
     )
 
+    
+    async def zoom_slider_update(grid, e):
+        grid.max_extent = e.control.value
+        page.update()
+
     gallery_view = ft.Container(
         expand=True, 
         content=ft.Column([
             filters_container,
             ft.Divider(height=1),
-            image_grid
+            image_grid,
+            ft.Slider(min=64, max=512, value=256, label="{value}px", on_change=partial(zoom_slider_update, image_grid)),
         ])
     )
 
@@ -234,9 +239,12 @@ def main(page: ft.Page):
     favorites_view = ft.Container(
         expand=True, 
         content=ft.Column([
-            image_grid_favorites
+            image_grid_favorites,
+            ft.Slider(min=64, max=512, value=256, label="{value}px", on_change=partial(zoom_slider_update, image_grid_favorites)),
         ])
     )
+
+
     
     
     temp_view = ft.Column(
