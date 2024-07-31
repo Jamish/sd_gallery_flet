@@ -10,6 +10,7 @@ from PIL import Image
 import json
 from dataclasses import asdict, field
 from functools import partial
+from controls.image_popup_control import ImagePopupControl
 from lib.database import DiskCacheEntry, Database
 
 from lib.png_data import PngData
@@ -46,7 +47,21 @@ def main(page: ft.Page):
                 close_image_popup(None)
         if e.key == "F":
             if image_popup != None:
-                toggle_favorite(image_popup.data, None)
+                toggle_favorite(image_popup.control.data, None) 
+        if e.key == "Arrow Right" or e.key == "D":
+            if image_popup != None:
+                print("right")
+                image_data = image_popup.control.data
+                # TODO Differentiate between image_grid and image_grid_favorites
+                for i, entry in enumerate(image_grid.controls):
+                    if entry.data == image_data.image_path:
+                        next_index = (i+1) % len(image_grid.controls)
+                        open_image_popup(image_grid.controls[next_index].data, None)
+                        return
+        if e.key == "Arrow Left" or e.key == "A":
+            if image_popup != None:
+                print("left")
+                image_data = image_popup.control.data
 
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
@@ -119,7 +134,7 @@ def main(page: ft.Page):
     def create_image_gallery_entry(png_data: PngData):
         image_path=png_data.image_path
         return ft.Container(
-            on_click=partial(create_image_popup, image_path),
+            on_click=partial(open_image_popup, image_path),
             content=ft.Image(
                 src_base64=png_data.thumbnail_base64, 
                 fit=ft.ImageFit.COVER,
@@ -243,9 +258,7 @@ def main(page: ft.Page):
             ft.Slider(min=64, max=512, value=256, label="{value}px", on_change=partial(zoom_slider_update, image_grid_favorites)),
         ])
     )
-
-
-    
+   
     
     temp_view = ft.Column(
         [
@@ -350,11 +363,9 @@ def main(page: ft.Page):
 
     def close_image_popup(e):
         nonlocal image_popup
-        image_popup.visible = False
+        image_popup.control.visible = False
         image_popup = None
         page.update()
-
-    favorites_button = None
 
     def toggle_favorite(image_data: PngData, e):
         image_data.favorite = not image_data.favorite
@@ -364,7 +375,7 @@ def main(page: ft.Page):
             favorite_icon = ft.icons.FAVORITE
         save_png_data(image_data)
 
-        favorites_button.icon = favorite_icon
+        image_popup.favorite_button.icon = favorite_icon
 
         if image_data.favorite:
             image_grid_favorites.controls.append(create_image_gallery_entry(image_data))
@@ -374,87 +385,24 @@ def main(page: ft.Page):
                     del image_grid_favorites.controls[i]
 
         image_grid_favorites.update()
-        favorites_button.update()
+        image_popup.favorite_button.update()
         page.update()
 
 
-    def create_image_popup(image_path, e):
+    def open_image_popup(image_path, e):
         nonlocal image_popup
-        nonlocal favorites_button
         
         image_data = image_cache.get(image_path)
-        lora_fields = []
-        i = 0
-        for lora in image_data.loras:
-            i += 1
-            lora_fields.append(ft.TextField(label=f"LoRA #{i}", read_only=True, value=lora)),
-                               
-        content = ft.Row(
-            alignment=ft.MainAxisAlignment.SPACE_EVENLY, 
-            controls=[
-                ft.Image(
-                    expand=True,
-                    src=image_path, 
-                    fit=ft.ImageFit.CONTAIN,
-                ),
-                ft.VerticalDivider(width=1),
-                ft.Container(
-                    padding = 10,
-                    width=384,
-                    content = ft.Column(
-                        alignment=ft.MainAxisAlignment.START,
-                        horizontal_alignment=ft.CrossAxisAlignment.END,
-                        scroll=ft.ScrollMode.ALWAYS,
-                        controls=[
-                            ft.Container(height=10), # To give visual space from the top, for the floating X button
-                            ft.TextField(label="Model Checkpoint", read_only=True, value=image_data.checkpoint),
-                            *lora_fields,
-                            ft.Container(height=5), # To separate LoRAs and prompts
-                            ft.TextField(label="Positive Prompt", read_only=True, multiline=True, value=image_data.positive_prompt),
-                            ft.ElevatedButton(text="Copy Positive Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
-                            ft.TextField(label="Negative Prompt", read_only=True, multiline=True,value=image_data.negative_prompt),
-                            ft.ElevatedButton(text="Copy Negative Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
-                        ]
-                    )
-                )
-            ]
-        )
-
-        favorite_icon = ft.icons.FAVORITE_BORDER
-        if image_data.favorite:
-            favorite_icon = ft.icons.FAVORITE
-
-        should_add_popup = False
+        
         if image_popup == None:
-            should_add_popup = True
-
-        favorites_button = ft.IconButton(
-            icon=favorite_icon,
-            on_click=partial(toggle_favorite, image_data),
-        )
-
-        image_popup = ft.Container(
-            ft.Stack([
-                content,
-                ft.Row([
-                    favorites_button,
-                    ft.FloatingActionButton(
-                        mini=True,
-                        icon=ft.icons.CLEAR_ROUNDED,
-                        on_click=close_image_popup,
-                    )
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                # ft.Row([
-                    
-                # ], alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.END, expand=True)
-            ], expand=True, data=image_path),
-            bgcolor=ft.colors.BACKGROUND,
-            data=image_data
-        )
-
-        if should_add_popup:
-            page_stack.controls.append(image_popup)
-        page.update()
+            image_popup = ImagePopupControl(toggle_favorite=toggle_favorite, close_image_popup=close_image_popup)
+            image_popup.load_data(image_data)
+            page_stack.controls.append(image_popup.control)
+            page.update()
+        else:
+            image_popup.load_data(image_data)
+            image_popup.control.update()
+            page.update()
         
 
 
