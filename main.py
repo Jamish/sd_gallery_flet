@@ -40,6 +40,15 @@ def main(page: ft.Page):
     page.title = "Image Browser"
     
     def on_keyboard(e: ft.KeyboardEvent):
+        def next_popup(plus_or_minus_one):
+            image_data = image_popup.data
+            for i, entry in enumerate(current_image_grid.controls):
+                if entry.data == image_data.image_path:
+                    next_index = (i+plus_or_minus_one) % len(current_image_grid.controls)
+                    create_image_popup(current_image_grid.controls[next_index].data, None)
+                    return
+
+
         print(f"Key Pressed: {e.key}")
         if e.key == "Escape":
             if image_popup != None:
@@ -47,6 +56,12 @@ def main(page: ft.Page):
         if e.key == "F":
             if image_popup != None:
                 toggle_favorite(image_popup.data, None)
+        if e.key == "Arrow Right" or e.key == "D":
+            if image_popup != None:
+                next_popup(1)
+        if e.key == "Arrow Left" or e.key == "A":
+            if image_popup != None:
+                next_popup(-1)
 
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
@@ -211,6 +226,7 @@ def main(page: ft.Page):
         run_spacing=5,
         padding=ft.padding.only(right=15),
     )
+    current_image_grid = image_grid
 
     
     async def zoom_slider_update(grid, e):
@@ -351,7 +367,6 @@ def main(page: ft.Page):
     def close_image_popup(e):
         nonlocal image_popup
         image_popup.visible = False
-        image_popup = None
         page.update()
 
     favorites_button = None
@@ -424,10 +439,6 @@ def main(page: ft.Page):
         if image_data.favorite:
             favorite_icon = ft.icons.FAVORITE
 
-        should_add_popup = False
-        if image_popup == None:
-            should_add_popup = True
-
         favorites_button = ft.IconButton(
             icon=favorite_icon,
             on_click=partial(toggle_favorite, image_data),
@@ -452,8 +463,7 @@ def main(page: ft.Page):
             data=image_data
         )
 
-        if should_add_popup:
-            page_stack.controls.append(image_popup)
+        page_stack.controls = [main_view, image_popup]
         page.update()
         
 
@@ -502,6 +512,7 @@ def main(page: ft.Page):
     )
 
     def load_subview(index):
+        nonlocal current_image_grid
         print(f"load subview {index}")
         def get_page(i):
             if i >= len(subviews):
@@ -509,9 +520,15 @@ def main(page: ft.Page):
             return subviews[i]
         for subview in subviews:
             subview.visible = False
-        get_page(index).visible = True
 
-        subview.update()
+        current_subview = get_page(index)
+        current_subview.visible = True
+
+        if current_subview == gallery_view:
+            current_image_grid = image_grid
+        if current_subview == favorites_view:
+            current_image_grid = image_grid_favorites
+
         page.update()
 
     main_view = ft.Row(
