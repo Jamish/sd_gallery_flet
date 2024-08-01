@@ -24,6 +24,13 @@ class PngParser:
     def __normalize_tag(self, tag):
         tag = tag.strip()
 
+        def remove_lora_tags(tag):
+            lora_pattern = r"<lora:[^>]+>"  # Match the entire LORA tag
+            cleaned_tag = re.sub(lora_pattern, "", tag)
+            return cleaned_tag.strip()  # Remove any extra whitespace
+
+        tag = remove_lora_tags(tag)
+
         # Replace escaped parentheses with temporary characters
         tag = tag.replace("\\(", "<").replace("\\)", ">")
 
@@ -44,14 +51,43 @@ class PngParser:
 
         tag = tag.strip() 
 
-        return tag
+        return tag.lower()
+    
+    
+    def __parse_automatic1111(self, im: Image, image_path):
+        text = im.info['parameters']
 
-    def parse(self, image_path: str) -> PngData:
-        im = Image.open(image_path)
-        im.load()
+        def halve(text, separator):
+            tokens = text.split(separator, 1)
+            return tokens[0], tokens[1]
+        
+        positive_prompt = ""
+        negative_prompt = ""
 
+        if "\nNegative prompt:" in text:
+            positive_prompt, remains = halve(text, "\nNegative prompt:")
+            negative_prompt, remains = halve(remains, "\nSteps:")
+        else:
+            positive_prompt, remains = halve(text, "\nSteps:")
+
+        lora_pattern = r"<lora:([^:]+):\d+(?:\.\d+)?>"
+        loras = re.findall(lora_pattern, positive_prompt)
+
+        # Extract the model using regex
+        model_match = re.search(r"Model: ([^,]+)", text)
+        model_name = model_match.group(1).strip() if model_match else ""
+
+        return {
+            "positive_prompt": positive_prompt,
+            "negative_prompt": negative_prompt,
+            "model_name": model_name,
+            "loras": loras
+        }
+
+
+    
+    def __parse_comfyui(self, im: Image, image_path):
         workflow = im.info['workflow']
-        # print(workflow)
 
         data = json.loads(workflow)
 
@@ -119,21 +155,7 @@ class PngParser:
             negative_prompt = clip_nodes[0]['widgets_values'][2]
         else:
             raise Exception(f"Found more than 2 CLIP nodes for file {image_path}.")
-
-        # pyperclip.copy(prompt)
-
-        # Split by newline and commas 
-        tags = re.split(r"[,\n]+", positive_prompt.strip())
-        tags = [self.__normalize_tag(tag) for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
-        tags = list(set(tags)) # unique
-
         
-        #print(f"Positive tags: {tags}")
-        
-        condensed_positive_prompt = positive_prompt.replace("\n", " ")
-        condensed_negative_prompt = negative_prompt.replace("\n", " ")
-        
-        display_text = ""
         model_name = ""
         if model_node is not None:
             if model_node['type'] == "CheckpointLoaderSimple":
@@ -141,10 +163,8 @@ class PngParser:
             else:
                 model_name = model_node['widgets_values'][0]['content']
             model_name = model_name.replace(".safetensors", "")
-            display_text = f"MODEL: {model_name}\n\n"
 
 
-        has_lora = False
         loras = []
         for lora_node in lora_nodes:
             if lora_node['mode'] == 4: # Mode 4 is "bypass"
@@ -155,14 +175,38 @@ class PngParser:
                 lora_name = lora_node['widgets_values'][0]['content'].replace(".safetensors", "")
             strength = lora_node['widgets_values'][1]
             loras.append(lora_name)
-            display_text = f"{display_text}LORA: {lora_name} (weight: {strength:.2f})\n"
-            has_lora = True
 
-        if has_lora:
-            display_text = f"{display_text}\n"        
 
-        display_text = f"{display_text}POSITIVE:\n{condensed_positive_prompt}\n\n"
-        display_text = f"{display_text}NEGATIVE:\n{condensed_negative_prompt}\n"
+        result =  {
+            "positive_prompt": positive_prompt,
+            "negative_prompt": negative_prompt,
+            "model_name": model_name,
+            "loras": loras
+        }
+        return result
+
+
+    def parse(self, image_path: str) -> PngData:
+        im = Image.open(image_path)
+        im.load()
+
+        result = None
+        if "workflow" in im.info:
+            print("Parsing ComfyUI")
+            result = self.__parse_comfyui(im, image_path)
+        if "parameters" in im.info:
+            result = self.__parse_automatic1111(im, image_path)
+
+
+        positive_prompt = result["positive_prompt"]
+        negative_prompt = result["negative_prompt"]
+        model_name = result["model_name"]
+        loras = result["loras"]
+
+        # Split by newline and commas 
+        tags = re.split(r"[,\n]+", positive_prompt.strip())
+        tags = [self.__normalize_tag(tag) for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
+        tags = list(set(tags)) # unique
         
         thumbnail_base64 = imagez.make_thumbnail_base64(im)
 

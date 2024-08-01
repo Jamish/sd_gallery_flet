@@ -49,18 +49,15 @@ def main(page: ft.Page):
                     return
 
 
-        print(f"Key Pressed: {e.key}")
-        if e.key == "Escape":
-            if image_popup != None:
+        # print(f"Key Pressed: {e.key}")
+        if image_popup.visible:
+            if e.key == "Escape":
                 close_image_popup(None)
-        if e.key == "F":
-            if image_popup != None:
+            if e.key == "F":
                 toggle_favorite(image_popup.data, None)
-        if e.key == "Arrow Right" or e.key == "D":
-            if image_popup != None:
+            if e.key == "Arrow Right" or e.key == "D":
                 next_popup(1)
-        if e.key == "Arrow Left" or e.key == "A":
-            if image_popup != None:
+            if e.key == "Arrow Left" or e.key == "A":
                 next_popup(-1)
 
     def pick_files_result(e: ft.FilePickerResultEvent):
@@ -101,7 +98,15 @@ def main(page: ft.Page):
 
         # Submit image processing tasks to the thread pool
         futures = []
-        file_list = os.listdir(dir_path)
+
+        def get_all_files(dir_path):
+            all_files = []
+            for root, dirs, files in os.walk(dir_path):
+                for file in files:
+                    all_files.append(os.path.join(root, file))  # Get the full path
+            return all_files
+        # file_list = os.listdir(dir_path)
+        file_list = get_all_files(dir_path)
         print(f"Loading {len(file_list)} images")
         for filename in file_list:
             if filename.lower().endswith((".png")):
