@@ -5,6 +5,7 @@ import json
 import os
 import re
 import lib.image_helpers as imagez
+import lib.list_helpers as listz
 NODE_NAMES_SAMPLER = ["KSampler"]
 NODE_NAMES_MODEL = ["CheckpointLoader"]
 NODE_NAMES_CLIP = ["CLIPTextEncode", "CLIP"]
@@ -23,13 +24,6 @@ class PngParser:
     
     def __normalize_tag(self, tag):
         tag = tag.strip()
-
-        def remove_lora_tags(tag):
-            lora_pattern = r"<lora:[^>]+>"  # Match the entire LORA tag
-            cleaned_tag = re.sub(lora_pattern, "", tag)
-            return cleaned_tag.strip()  # Remove any extra whitespace
-
-        tag = remove_lora_tags(tag)
 
         # Replace escaped parentheses with temporary characters
         tag = tag.replace("\\(", "<").replace("\\)", ">")
@@ -204,6 +198,11 @@ class PngParser:
 
         # Split by newline and commas 
         tags = re.split(r"[,\n]+", positive_prompt.strip())
+
+        def remove_lora_tags(tag):
+            return re.split(r"<lora:[^>]+>", tag)
+        tags = listz.flatmap(remove_lora_tags, tags)
+
         tags = [self.__normalize_tag(tag) for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
         tags = list(set(tags)) # unique
         
