@@ -192,7 +192,6 @@ class PngParser:
 
         result = None
         if "workflow" in im.info:
-            print("Parsing ComfyUI")
             result = self.__parse_comfyui(im, image_path)
         if "parameters" in im.info:
             result = self.__parse_automatic1111(im, image_path)
