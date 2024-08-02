@@ -412,10 +412,21 @@ def main(page: ft.Page):
         content = ft.Row(
             alignment=ft.MainAxisAlignment.SPACE_EVENLY, 
             controls=[
-                ft.Image(
+                ft.Container(
+                    content = ft.Stack([
+                        ft.Image(
+                            expand=True,
+                            src_base64=image_data.thumbnail_base64, 
+                            fit=ft.ImageFit.CONTAIN,
+                        ),
+                        ft.Image(
+                            expand=True,
+                            src=image_path, 
+                            fit=ft.ImageFit.CONTAIN,
+                        ),
+                    ], expand=True, fit=ft.StackFit.EXPAND),
                     expand=True,
-                    src=image_path, 
-                    fit=ft.ImageFit.CONTAIN,
+                    alignment=ft.alignment.center,
                 ),
                 ft.VerticalDivider(width=1),
                 ft.Container(
