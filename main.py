@@ -19,6 +19,8 @@ from lib.tag_cache import TagCache
 import lib.file_helpers as filez
 import lib.image_helpers as imagez
 from lib.tag_data import TagData
+import threading
+
 
 print("hi")
 
@@ -40,13 +42,6 @@ def main(page: ft.Page):
     page.title = "Image Browser"
     
     def on_keyboard(e: ft.KeyboardEvent):
-        def next_popup(plus_or_minus_one):
-            image_data = image_popup.data
-            for i, entry in enumerate(current_image_grid.controls):
-                if entry.data == image_data.image_path:
-                    next_index = (i+plus_or_minus_one) % len(current_image_grid.controls)
-                    create_image_popup(current_image_grid.controls[next_index].data, None)
-                    return
 
 
         # print(f"Key Pressed: {e.key}")
@@ -56,9 +51,48 @@ def main(page: ft.Page):
             if e.key == "F":
                 toggle_favorite(image_popup.data, None)
             if e.key == "Arrow Right" or e.key == "D":
-                next_popup(1)
+                next_popup(1, None)
             if e.key == "Arrow Left" or e.key == "A":
-                next_popup(-1)
+                next_popup(-1, None)
+
+    def next_popup(plus_or_minus_one, e):
+        image_data = image_popup.data
+        for i, entry in enumerate(current_image_grid.controls):
+            if entry.data == image_data.image_path:
+                next_index = (i+plus_or_minus_one) % len(current_image_grid.controls)
+                create_image_popup(current_image_grid.controls[next_index].data, None)
+                return
+    slideshow_timer = None
+
+
+    slideshow_button = None
+    def toggle_slideshow(e):
+        nonlocal slideshow_timer
+        if slideshow_timer == None:
+            start_slideshow(None)
+            slideshow_button.icon = ft.icons.STOP_ROUNDED
+        else:
+            stop_slideshow(None)
+            slideshow_button.icon = ft.icons.PLAY_ARROW_ROUNDED
+        slideshow_button.update()
+        
+    def start_slideshow(e):
+        nonlocal slideshow_timer
+        next = False
+        if slideshow_timer != None:
+            next = True
+        slideshow_timer = threading.Timer(3, partial(start_slideshow, None))
+        slideshow_timer.start()
+        if next:
+            next_popup(1, None)
+
+    def stop_slideshow(e):
+        nonlocal slideshow_timer
+        if slideshow_timer != None:
+            slideshow_timer.cancel()
+            slideshow_timer = None
+
+        
 
     def pick_files_result(e: ft.FilePickerResultEvent):
         print(f"Selected path {e.path}")
@@ -372,6 +406,7 @@ def main(page: ft.Page):
     def close_image_popup(e):
         nonlocal image_popup
         image_popup.visible = False
+        stop_slideshow(None)
         page.update()
 
     favorites_button = None
@@ -401,6 +436,7 @@ def main(page: ft.Page):
     def create_image_popup(image_path, e):
         nonlocal image_popup
         nonlocal favorites_button
+        nonlocal slideshow_button
         
         image_data = image_cache.get(image_path)
         lora_fields = []
@@ -451,6 +487,7 @@ def main(page: ft.Page):
             ]
         )
 
+        # TODO Use selected_icon_color! https://flet.dev/docs/controls/iconbutton/#selected_icon_color
         favorite_icon = ft.icons.FAVORITE_BORDER
         if image_data.favorite:
             favorite_icon = ft.icons.FAVORITE
@@ -460,20 +497,38 @@ def main(page: ft.Page):
             on_click=partial(toggle_favorite, image_data),
         )
 
+        slideshow_icon = ft.icons.PLAY_ARROW_ROUNDED
+        if slideshow_timer != None:
+            slideshow_icon = ft.icons.STOP_ROUNDED
+        slideshow_button = ft.IconButton(
+            icon=slideshow_icon,
+            on_click=toggle_slideshow,
+        )
+
         image_popup = ft.Container(
             ft.Stack([
                 content,
-                ft.Row([
-                    favorites_button,
-                    ft.FloatingActionButton(
-                        mini=True,
-                        icon=ft.icons.CLEAR_ROUNDED,
-                        on_click=close_image_popup,
-                    )
+                ft.Column([
+                    ft.Row([
+                        favorites_button,
+                        ft.FloatingActionButton(
+                            mini=True,
+                            icon=ft.icons.CLEAR_ROUNDED,
+                            on_click=close_image_popup,
+                        )
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Row([
+                        ft.IconButton(
+                            icon=ft.icons.ARROW_CIRCLE_LEFT_ROUNDED,
+                            on_click=partial(next_popup, -1),
+                        ),
+                        slideshow_button,
+                        ft.IconButton(
+                            icon=ft.icons.ARROW_CIRCLE_RIGHT_ROUNDED,
+                            on_click=partial(next_popup, 1),
+                        ),
+                    ], alignment=ft.MainAxisAlignment.CENTER),
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                # ft.Row([
-                    
-                # ], alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.END, expand=True)
             ], expand=True, data=image_path),
             bgcolor=ft.colors.BACKGROUND,
             data=image_data
