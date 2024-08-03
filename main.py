@@ -288,6 +288,23 @@ def main(page: ft.Page):
     def create_collection_widget(collection: ImageCollection):
         print("Creating collection!")
         print(collection)
+
+
+        def handle_confirm(e):
+            delete_collection(collection, None)
+            page.close(dialog)
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(f"Delete {collection.name}"),
+            content=ft.Text(f"Do you really want to delete collection {collection.name}, including favorites?"),
+            actions=[
+                ft.TextButton("Yes", on_click=handle_confirm),
+                ft.TextButton("No", on_click=lambda e: page.close(dialog)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
         return ft.Container(
                 data=collection,
                 expand=True,
@@ -301,7 +318,7 @@ def main(page: ft.Page):
                         ),
                         ft.IconButton(
                             icon=ft.icons.DELETE_FOREVER,
-                            on_click=partial(delete_collection, collection)
+                            on_click=lambda e: page.open(dialog)
                         )
                     ])
                 ])
