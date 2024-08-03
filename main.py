@@ -10,6 +10,7 @@ from PIL import Image
 import json
 from dataclasses import asdict, field
 from functools import partial
+from lib.configurator import Configurations, ImageCollection
 from lib.database import DiskCacheEntry, Database
 
 from lib.png_data import PngData
@@ -34,10 +35,11 @@ def main(page: ft.Page):
     png_parser = PngParser()
 
     tag_cache = TagCache()
-
     image_cache = ImageCache()
     database = Database(cache_dir, "data.sqlite3")
     database.try_create_database()
+
+    config = Configurations(cache_dir, "config.json")
 
     page.title = "Image Browser"
     
@@ -45,7 +47,7 @@ def main(page: ft.Page):
 
 
         # print(f"Key Pressed: {e.key}")
-        if image_popup.visible:
+        if image_popup and image_popup.visible:
             if e.key == "Escape":
                 close_image_popup(None)
             if e.key == "F":
@@ -94,9 +96,9 @@ def main(page: ft.Page):
 
         
 
-    def pick_files_result(e: ft.FilePickerResultEvent):
-        print(f"Selected path {e.path}")
-        load_images_from_directory(e.path)
+    # def pick_files_result(e: ft.FilePickerResultEvent):
+    #     print(f"Selected path {e.path}")
+    #     load_images_from_directory(e.path)
 
     def save_png_data(png_data: PngData):
         cache_entry = DiskCacheEntry(
@@ -195,14 +197,37 @@ def main(page: ft.Page):
         print(f"Added {len(image_paths)} images to gallery.")
         page.update()
 
-    def load_gallery(image_paths):
+    def close_collection():
+        nonlocal tag_cache
+        nonlocal image_cache
+        clear_gallery()
+        tag_cache = TagCache()
+        image_cache = ImageCache()
+        clear_filter(None)
+        clear_selected_tags(None)
+
+    def clear_gallery():
         image_grid.controls.clear()  # Clear existing images
+        image_grid_favorites.controls.clear()  # Clear existing images
+ 
+    def go_to_gallery_view():
+        rail.selected_index = 1
+        rail.update()
+        load_subview(1)
+
+    def load_gallery(image_paths):
+        clear_gallery()
         add_to_gallery(image_paths)
-        rail.selected_index = 0
-        load_subview(0)
+        go_to_gallery_view()
 
     selected_tag_buttons = []
     selected_files = []
+    def clear_selected_tags(e):
+        selected_tag_buttons.clear()
+        selected_files.clear()
+        filters_container.controls = selected_tag_buttons
+        filters_container.update()
+
     def deselect_tag(e):
         nonlocal selected_tag_buttons
         nonlocal selected_files
@@ -216,12 +241,8 @@ def main(page: ft.Page):
         all_files = list(map(lambda image: image.image_path, image_cache.get_all()));
         if len(selected_tag_buttons) == 0:
             # Last filter removed.
-            selected_tag_buttons.clear()
-            selected_files.clear()
-            filters_container.controls = selected_tag_buttons
-            filters_container.update()
+            clear_selected_tags(e)
             load_gallery(all_files)
-
         else:
             # Re-filter the master file list against each seleted tag 
             selected_tags = [button.data for button in selected_tag_buttons]
@@ -246,8 +267,123 @@ def main(page: ft.Page):
             selected_files = [file for file in selected_files if file in tag.files]
         load_gallery(selected_files)
 
-    pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
-    page.overlay.append(pick_files_dialog)
+
+    def open_collection(path, e):
+        close_collection()
+        go_to_gallery_view()
+        load_images_from_directory(path)
+
+    def create_collection_widget(collection: ImageCollection):
+        print("Creating collection!")
+        print(collection)
+        return ft.Container(
+                expand=True,
+                content=ft.Column([
+                    ft.Text(collection.name),
+                    ft.Row([
+                        ft.FilledButton(
+                            text="Open",
+                            icon=ft.icons.FOLDER_OPEN,
+                            on_click=partial(open_collection, collection.directory_path)
+                        ),
+                        ft.IconButton(
+                            icon=ft.icons.DELETE_FOREVER
+                        )
+                    ])
+                ])
+            )
+    def open_new_collection_popup(e):
+        def handle_create(e):
+            name = input_name.value.strip()
+            folder = input_folder.value
+            has_errors = False
+            # TODO CHeck if name already exists
+            if name == "":
+                input_name.error_text = "Required!"
+                input_name.update()
+                has_errors = True
+            if config.collection_exists(name):
+                input_name.error_text = "That name already exists!"
+                input_name.update()
+                has_errors = True
+            
+            if folder is None:
+                input_folder.value = "Choose a folder first!"
+                input_folder.update()
+                has_errors = True
+            if has_errors:
+                return
+
+            page.close(dlg_modal)
+
+            collection = ImageCollection(name, folder)
+            config.save_collection(collection)
+            collection_widget = create_collection_widget(collection)
+            collection_grid.controls.append(collection_widget)
+            collection_grid.update()
+
+
+        def select_folder(e):
+            def select_folder_result(e: ft.FilePickerResultEvent):
+                input_folder.value = e.path
+                input_folder.update()
+            pick_files_dialog = ft.FilePicker(on_result=select_folder_result)
+            page.overlay.append(pick_files_dialog)
+            page.update()
+            pick_files_dialog.get_directory_path(
+                dialog_title="Open Image Folder", 
+                initial_directory=os.getcwd()
+            )
+
+        input_name = ft.TextField(label="Name")
+        input_folder = ft.Text("")
+        text_errors = ft.Text()
+        dlg_modal = ft.AlertDialog(
+            title=ft.Text("New Collection"),
+            content=ft.Column([
+                input_name,
+                ft.Row([
+                    ft.FilledButton(
+                        text="Choose",
+                        icon=ft.icons.FOLDER_OPEN, 
+                        on_click=select_folder
+                    ),
+                    input_folder,
+                ]),
+                text_errors,
+            ]),
+            actions=[
+                ft.TextButton("Create", on_click=handle_create),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+            on_dismiss=lambda e: print("Closed")
+        )
+
+
+        page.open(dlg_modal)
+
+    collection_grid = ft.GridView(
+        expand=True,
+        runs_count=5,  # Adjust columns as needed
+        max_extent=256,  # Adjust maximum image size as needed
+        spacing=5,
+        run_spacing=5,
+        padding=ft.padding.only(right=15),
+    )
+    collection_view = ft.Container(
+        expand=True,
+        content=collection_grid
+    )
+    new_collection_button = ft.FloatingActionButton(
+        icon=ft.icons.ADD_BOX_OUTLINED,
+        text="New Collection",
+        on_click=open_new_collection_popup
+    )
+    collection_grid.controls.append(new_collection_button)
+
+    for collection in config.get_collections():
+        collection_grid.controls.append(create_collection_widget(collection))
+
 
     filters_container = ft.Row(
         vertical_alignment=ft.CrossAxisAlignment.START,
@@ -359,7 +495,6 @@ def main(page: ft.Page):
         "loras": make_tags_button_row(),
         "tags": make_tags_button_row(),
     }
-    
     tag_filter_textfield =  ft.TextField(label="Filter...", on_change=update_tag_filter)
     tags_view = ft.Column(
         alignment=ft.MainAxisAlignment.START,
@@ -398,9 +533,9 @@ def main(page: ft.Page):
             )
         ])
     
-    
 
 
+    ## TODO Use page.overlay instead of your own stack, dummy
     image_popup = None
 
     def close_image_popup(e):
@@ -541,7 +676,7 @@ def main(page: ft.Page):
 
 
 
-    subviews = [gallery_view, tags_view, favorites_view, temp_view]
+    subviews = [collection_view, gallery_view, tags_view, favorites_view, temp_view]
 
 
     rail = ft.NavigationRail(
@@ -550,20 +685,25 @@ def main(page: ft.Page):
         # extended=True,
         min_width=100,
         min_extended_width=400,
-        leading=ft.FloatingActionButton(
-            icon=ft.icons.FOLDER_OPEN, 
-            text="Open Gallery", 
-            on_click=lambda _: pick_files_dialog.get_directory_path(
-                dialog_title="Open Image Folder", 
-                initial_directory=os.getcwd()
-            ),
-        ),
+        # leading=ft.FloatingActionButton(
+        #     icon=ft.icons.FOLDER_OPEN, 
+        #     text="Open Gallery", 
+        #     on_click=lambda _: pick_files_dialog.get_directory_path(
+        #         dialog_title="Open Image Folder", 
+        #         initial_directory=os.getcwd()
+        #     ),
+        # ),
         group_alignment=-0.9,
         destinations=[
             ft.NavigationRailDestination(
+                icon_content=ft.Icon(ft.icons.FOLDER_COPY_OUTLINED),
+                selected_icon_content=ft.Icon(ft.icons.FOLDER_COPY_ROUNDED),
+                label="Collections",
+            ),
+            ft.NavigationRailDestination(
                 icon_content=ft.Icon(ft.icons.GRID_VIEW_OUTLINED),
                 selected_icon_content=ft.Icon(ft.icons.GRID_VIEW_SHARP),
-                label="Gallery",
+                label="Images",
             ),
             ft.NavigationRailDestination(
                 icon_content=ft.Icon(ft.icons.BOOKMARK_BORDER),
