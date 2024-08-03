@@ -181,6 +181,7 @@ class PngParser:
 
 
     def parse(self, image_path: str) -> PngData:
+        timestamp = os.path.getctime(image_path)
         im = Image.open(image_path)
         im.load()
 
@@ -222,6 +223,7 @@ class PngParser:
             checkpoint=model_name,
             loras=loras,
             thumbnail_base64 = thumbnail_base64,
+            timestamp=timestamp
         )
 
         return png_data

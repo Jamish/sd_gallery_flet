@@ -182,7 +182,7 @@ def main(page: ft.Page):
                 key=image_path,
                 border_radius=ft.border_radius.all(5)
                 ),
-            data=image_path
+            data=png_data
         )
 
     def add_to_gallery(image_paths):
@@ -195,6 +195,10 @@ def main(page: ft.Page):
             if png_data.favorite:
                 image_grid_favorites.controls.append(create_image_gallery_entry(png_data))
         print(f"Added {len(image_paths)} images to gallery.")
+
+        image_grid.controls.sort(key=lambda x: x.data.timestamp, reverse=True)
+        image_grid_favorites.controls.sort(key=lambda x: x.data.timestamp, reverse=True)
+
         page.update()
 
     def close_collection():
@@ -288,7 +292,6 @@ def main(page: ft.Page):
     def create_collection_widget(collection: ImageCollection):
         print("Creating collection!")
         print(collection)
-
 
         def handle_confirm(e):
             delete_collection(collection, None)

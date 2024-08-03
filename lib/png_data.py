@@ -10,3 +10,4 @@ class PngData:
     negative_prompt: str = ""
     tags: list[str] = None
     thumbnail_base64: str = ""
+    timestamp: float = ""
