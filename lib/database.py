@@ -45,3 +45,9 @@ class Database:
             with closing(connection.cursor()) as cursor:
                 cursor.execute("REPLACE INTO images VALUES (?, ?)", (data.image_path, metadata))
                 connection.commit()
+
+    def delete_by_prefix(self, directory):
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            with closing(connection.cursor()) as cursor:
+                cursor.execute("DELETE FROM images WHERE image_path LIKE ?", (directory + '%',))
+                connection.commit()

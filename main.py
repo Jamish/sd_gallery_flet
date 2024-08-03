@@ -280,6 +280,8 @@ def main(page: ft.Page):
                     del collection_grid.controls[i]
         collection_grid.update()
         config.delete_collection(collection)
+        # TODO This would be avoided if I just used different Database files for each gallery
+        database.delete_by_prefix(collection.directory_path)
 
 
 
