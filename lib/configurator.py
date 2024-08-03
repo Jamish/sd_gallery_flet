@@ -52,4 +52,10 @@ class Configurations:
     
     def get_collections(self):
         return self.config.collections
+    
+    def delete_collection(self, image_collection: ImageCollection):
+        for i, collection in enumerate(self.config.collections):
+                if collection == image_collection:
+                    del self.config.collections[i]
+        self.__save()
 

@@ -268,15 +268,26 @@ def main(page: ft.Page):
         load_gallery(selected_files)
 
 
-    def open_collection(path, e):
+    def open_collection(collection: ImageCollection, e):
         close_collection()
         go_to_gallery_view()
-        load_images_from_directory(path)
+        load_images_from_directory(collection.directory_path)
+
+    def delete_collection(collection: ImageCollection, e):
+        close_collection()
+        for i, collection_widget in enumerate(collection_grid.controls):
+                if collection_widget.data == collection:
+                    del collection_grid.controls[i]
+        collection_grid.update()
+        config.delete_collection(collection)
+
+
 
     def create_collection_widget(collection: ImageCollection):
         print("Creating collection!")
         print(collection)
         return ft.Container(
+                data=collection,
                 expand=True,
                 content=ft.Column([
                     ft.Text(collection.name),
@@ -284,10 +295,11 @@ def main(page: ft.Page):
                         ft.FilledButton(
                             text="Open",
                             icon=ft.icons.FOLDER_OPEN,
-                            on_click=partial(open_collection, collection.directory_path)
+                            on_click=partial(open_collection, collection)
                         ),
                         ft.IconButton(
-                            icon=ft.icons.DELETE_FOREVER
+                            icon=ft.icons.DELETE_FOREVER,
+                            on_click=partial(delete_collection, collection)
                         )
                     ])
                 ])
