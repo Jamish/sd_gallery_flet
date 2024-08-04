@@ -556,12 +556,9 @@ def main(page: ft.Page):
     def toggle_favorite(image_data: PngData, e):
         image_data.favorite = not image_data.favorite
 
-        favorite_icon = ft.icons.FAVORITE_BORDER
-        if image_data.favorite:
-            favorite_icon = ft.icons.FAVORITE
         save_png_data(image_data)
 
-        favorites_button.icon = favorite_icon
+        favorites_button.selected = image_data.favorite
 
         if image_data.favorite:
             image_grid_favorites.controls.append(create_image_gallery_entry(image_data))
@@ -629,19 +626,15 @@ def main(page: ft.Page):
         )
 
         # TODO Use selected_icon_color! https://flet.dev/docs/controls/iconbutton/#selected_icon_color
-        favorite_icon = ft.icons.FAVORITE_BORDER
-        if image_data.favorite:
-            favorite_icon = ft.icons.FAVORITE
 
         favorites_button = ft.IconButton(
-            icon=favorite_icon,
+            icon=ft.icons.FAVORITE_BORDER,
+            selected_icon=ft.icons.FAVORITE,
+            selected=image_data.favorite,
+            icon_color=ft.colors.PINK_100,
+            selected_icon_color=ft.colors.PINK_300,
             on_click=partial(toggle_favorite, image_data),
         )
-
-        # slideshow_icon = ft.icons.PLAY_ARROW_ROUNDED
-        # if slideshow_button.is_running():
-        #     slideshow_icon = ft.icons.STOP_ROUNDED
-        # slideshow_button.icon = slideshow_icon
 
         image_popup = ft.Container(
             ft.Stack([
