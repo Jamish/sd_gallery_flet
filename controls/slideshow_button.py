@@ -7,22 +7,25 @@ class SlideshowButton:
         self.func_next_popup = func_next_popup
 
     def new_button(self):
-        self.button = ft.IconButton()
+        self.button = ft.IconButton(
+            icon=ft.icons.PLAY_ARROW_ROUNDED,
+            selected_icon=ft.icons.STOP_ROUNDED,
+            icon_color=ft.colors.BLUE_300,
+            selected_icon_color = ft.colors.BLUE,
+            style=ft.ButtonStyle(bgcolor='#66ffffff'),
+        )
         self.button.on_click = self.toggle_slideshow
-        if self.is_running():
-            self.button.icon = ft.icons.STOP_ROUNDED
-        else:
-            self.button.icon = ft.icons.PLAY_ARROW_ROUNDED
+        self.button.selected = self.is_running()
 
         return self.button
 
     def toggle_slideshow(self, e):
         if not self.is_running():
             self.start_slideshow()
-            self.button.icon = ft.icons.STOP_ROUNDED
+            self.button.selected = True
         else:
             self.stop_slideshow()
-            self.button.icon = ft.icons.PLAY_ARROW_ROUNDED
+            self.button.selected = False
         self.button.update()
         
     def start_slideshow(self):

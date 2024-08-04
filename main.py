@@ -27,6 +27,7 @@ import threading
 print("hi")
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+stop_functions = []
 
 
 def main(page: ft.Page):
@@ -67,6 +68,7 @@ def main(page: ft.Page):
                 create_image_popup(current_image_grid.controls[next_index].data.image_path, None)
                 return
     slideshow_button = SlideshowButton(next_popup)
+    stop_functions.append(slideshow_button.stop_slideshow)
         
 
     # def pick_files_result(e: ft.FilePickerResultEvent):
@@ -651,11 +653,14 @@ def main(page: ft.Page):
                     ft.Row([
                         ft.IconButton(
                             icon=ft.icons.ARROW_CIRCLE_LEFT_ROUNDED,
+                            icon_color=ft.colors.BLUE_300,
+                            # visual_density=ft.ThemeVisualDensity.COMPACT,
                             on_click=partial(next_popup, -1),
                         ),
                         slideshow_button.new_button(),
                         ft.IconButton(
                             icon=ft.icons.ARROW_CIRCLE_RIGHT_ROUNDED,
+                            icon_color=ft.colors.BLUE_300,
                             on_click=partial(next_popup, 1),
                         ),
                     ], alignment=ft.MainAxisAlignment.CENTER),
@@ -758,4 +763,6 @@ def main(page: ft.Page):
 ft.app(target=main)
 print("Shutting down worker threads...")
 executor.shutdown(wait=True, cancel_futures=True)
+for stop_func in stop_functions:
+    stop_func()
 print("Done! Adios!")
