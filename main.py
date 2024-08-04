@@ -10,6 +10,7 @@ from PIL import Image
 import json
 from dataclasses import asdict, field
 from functools import partial
+from controls.slideshow_button import SlideshowButton
 from lib.configurator import Configurations, ImageCollection
 from lib.database import DiskCacheEntry, Database
 
@@ -60,40 +61,12 @@ def main(page: ft.Page):
     def next_popup(plus_or_minus_one, e):
         image_data = image_popup.data
         for i, entry in enumerate(current_image_grid.controls):
-            if entry.data == image_data.image_path:
+            if entry.data.image_path == image_data.image_path:
                 next_index = (i+plus_or_minus_one) % len(current_image_grid.controls)
-                create_image_popup(current_image_grid.controls[next_index].data, None)
+                print("Creating popup")
+                create_image_popup(current_image_grid.controls[next_index].data.image_path, None)
                 return
-    slideshow_timer = None
-
-
-    slideshow_button = None
-    def toggle_slideshow(e):
-        nonlocal slideshow_timer
-        if slideshow_timer == None:
-            start_slideshow(None)
-            slideshow_button.icon = ft.icons.STOP_ROUNDED
-        else:
-            stop_slideshow(None)
-            slideshow_button.icon = ft.icons.PLAY_ARROW_ROUNDED
-        slideshow_button.update()
-        
-    def start_slideshow(e):
-        nonlocal slideshow_timer
-        next = False
-        if slideshow_timer != None:
-            next = True
-        slideshow_timer = threading.Timer(3, partial(start_slideshow, None))
-        slideshow_timer.start()
-        if next:
-            next_popup(1, None)
-
-    def stop_slideshow(e):
-        nonlocal slideshow_timer
-        if slideshow_timer != None:
-            slideshow_timer.cancel()
-            slideshow_timer = None
-
+    slideshow_button = SlideshowButton(next_popup)
         
 
     # def pick_files_result(e: ft.FilePickerResultEvent):
@@ -575,7 +548,7 @@ def main(page: ft.Page):
     def close_image_popup(e):
         nonlocal image_popup
         image_popup.visible = False
-        stop_slideshow(None)
+        slideshow_button.stop_slideshow()
         page.update()
 
     favorites_button = None
@@ -605,7 +578,6 @@ def main(page: ft.Page):
     def create_image_popup(image_path, e):
         nonlocal image_popup
         nonlocal favorites_button
-        nonlocal slideshow_button
         
         image_data = image_cache.get(image_path)
         lora_fields = []
@@ -666,13 +638,10 @@ def main(page: ft.Page):
             on_click=partial(toggle_favorite, image_data),
         )
 
-        slideshow_icon = ft.icons.PLAY_ARROW_ROUNDED
-        if slideshow_timer != None:
-            slideshow_icon = ft.icons.STOP_ROUNDED
-        slideshow_button = ft.IconButton(
-            icon=slideshow_icon,
-            on_click=toggle_slideshow,
-        )
+        # slideshow_icon = ft.icons.PLAY_ARROW_ROUNDED
+        # if slideshow_button.is_running():
+        #     slideshow_icon = ft.icons.STOP_ROUNDED
+        # slideshow_button.icon = slideshow_icon
 
         image_popup = ft.Container(
             ft.Stack([
@@ -691,7 +660,7 @@ def main(page: ft.Page):
                             icon=ft.icons.ARROW_CIRCLE_LEFT_ROUNDED,
                             on_click=partial(next_popup, -1),
                         ),
-                        slideshow_button,
+                        slideshow_button.new_button(),
                         ft.IconButton(
                             icon=ft.icons.ARROW_CIRCLE_RIGHT_ROUNDED,
                             on_click=partial(next_popup, 1),
