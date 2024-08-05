@@ -614,7 +614,7 @@ def main(page: ft.Page):
         if image_data.negative_prompt:
             sidebar_controls.extend([
                 ft.TextField(label="Negative Prompt", read_only=True, multiline=True, value=image_data.negative_prompt),
-                ft.ElevatedButton(text="Copy Negative Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
+                ft.ElevatedButton(text="Copy Negative Prompt", on_click=lambda _: pyperclip.copy(image_data.negative_prompt)),
             ])
         if image_data.raw_data:
             sidebar_controls.extend([
