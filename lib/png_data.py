@@ -11,3 +11,5 @@ class PngData:
     tags: list[str] = None
     thumbnail_base64: str = ""
     timestamp: float = ""
+    raw_data: str = ""
+    error: str = ""

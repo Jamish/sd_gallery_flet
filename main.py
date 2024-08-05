@@ -584,6 +584,33 @@ def main(page: ft.Page):
         for lora in image_data.loras:
             i += 1
             lora_fields.append(ft.TextField(label=f"LoRA #{i}", read_only=True, value=lora)),
+        
+        sidebar_controls = [
+            ft.Container(height=10), # To give visual space from the top, for the floating X button
+        ]
+        if image_data.checkpoint:
+            sidebar_controls.append(ft.TextField(label="Model Checkpoint", read_only=True, value=image_data.checkpoint))
+        sidebar_controls.extend(lora_fields)
+        sidebar_controls.append(ft.Container(height=5))
+        if image_data.positive_prompt:
+            sidebar_controls.extend([
+                ft.TextField(label="Positive Prompt", read_only=True, multiline=True, value=image_data.positive_prompt),
+                ft.ElevatedButton(text="Copy Positive Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
+            ])
+        if image_data.negative_prompt:
+            sidebar_controls.extend([
+                ft.TextField(label="Negative Prompt", read_only=True, multiline=True, value=image_data.negative_prompt),
+                ft.ElevatedButton(text="Copy Negative Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
+            ])
+        if image_data.raw_data:
+            sidebar_controls.extend([
+                ft.TextField(label="Raw Data", read_only=True, multiline=True, value=image_data.raw_data)
+            ])
+        if image_data.error:
+            sidebar_controls.extend([
+                ft.TextField(label="Error", read_only=True, multiline=True, value=image_data.error)
+            ])
+
                                
         content = ft.Row(
             alignment=ft.MainAxisAlignment.SPACE_EVENLY, 
@@ -612,22 +639,11 @@ def main(page: ft.Page):
                         alignment=ft.MainAxisAlignment.START,
                         horizontal_alignment=ft.CrossAxisAlignment.END,
                         scroll=ft.ScrollMode.ALWAYS,
-                        controls=[
-                            ft.Container(height=10), # To give visual space from the top, for the floating X button
-                            ft.TextField(label="Model Checkpoint", read_only=True, value=image_data.checkpoint),
-                            *lora_fields,
-                            ft.Container(height=5), # To separate LoRAs and prompts
-                            ft.TextField(label="Positive Prompt", read_only=True, multiline=True, value=image_data.positive_prompt),
-                            ft.ElevatedButton(text="Copy Positive Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
-                            ft.TextField(label="Negative Prompt", read_only=True, multiline=True,value=image_data.negative_prompt),
-                            ft.ElevatedButton(text="Copy Negative Prompt", on_click=lambda _: pyperclip.copy(image_data.positive_prompt)),
-                        ]
+                        controls=sidebar_controls,
                     )
                 )
             ]
         )
-
-        # TODO Use selected_icon_color! https://flet.dev/docs/controls/iconbutton/#selected_icon_color
 
         favorites_button = ft.IconButton(
             icon=ft.icons.FAVORITE_BORDER,

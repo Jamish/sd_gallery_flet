@@ -1,4 +1,6 @@
 
+import sys
+import traceback
 from lib.png_data import PngData
 from PIL import Image
 import json
@@ -185,47 +187,70 @@ class PngParser:
         im = Image.open(image_path)
         im.load()
 
-        result = None
-        if "workflow" in im.info:
-            result = self.__parse_comfyui(im, image_path)
-        if "parameters" in im.info:
-            result = self.__parse_automatic1111(im, image_path)
-
-
-        positive_prompt = result["positive_prompt"]
-        negative_prompt = result["negative_prompt"]
-        model_name = result["model_name"]
-        loras = result["loras"]
-
-        # Split by newline and commas 
-        tags = re.split(r"[,\n]+", positive_prompt.strip())
-
-        def remove_lora_tags(tag):
-            return re.split(r"<lora:[^>]+>", tag)
-        tags = listz.flatmap(remove_lora_tags, tags)
-
-        tags = [self.__normalize_tag(tag) for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
-        tags = list(set(tags)) # unique
-        
+        raw_data = im.info
         thumbnail_base64 = imagez.make_thumbnail_base64(im)
 
-        model_name_trimmed = model_name.split("\\")[-1]
-        tags.append(f"model:{model_name_trimmed}")
-        for lora in loras:
-            lora_name_trimmed = lora.split("\\")[-1]
-            tags.append(f"lora:{lora_name_trimmed}")
+        print(f"Loading image {im.info}")
 
-        png_data = PngData(
-            image_path=image_path,
-            tags=tags,
-            positive_prompt=positive_prompt,
-            negative_prompt=negative_prompt,
-            checkpoint=model_name,
-            loras=loras,
-            thumbnail_base64 = thumbnail_base64,
-            timestamp=timestamp
-        )
+        def default(error=""):
+            return PngData(
+                image_path=image_path,
+                thumbnail_base64 = thumbnail_base64,
+                timestamp=timestamp,
+                raw_data=raw_data,
+                loras=[],
+                tags=[],
+                error=error
+            )
+        result = None
+        try:
+            if "workflow" in im.info:
+                result = self.__parse_comfyui(im, image_path)
+            if "parameters" in im.info:
+                result = self.__parse_automatic1111(im, image_path)
 
-        return png_data
+            if result == None:
+                return default()
+                
+
+            positive_prompt = result["positive_prompt"]
+            negative_prompt = result["negative_prompt"]
+            model_name = result["model_name"]
+            loras = result["loras"]
+
+            # Split by newline and commas 
+            tags = re.split(r"[,\n]+", positive_prompt.strip())
+
+            def remove_lora_tags(tag):
+                return re.split(r"<lora:[^>]+>", tag)
+            tags = listz.flatmap(remove_lora_tags, tags)
+
+            tags = [self.__normalize_tag(tag) for tag in tags if tag.strip()] # Strip whitespace from tags and Filter out empty tags
+            tags = list(set(tags)) # unique
+            
+
+            model_name_trimmed = model_name.split("\\")[-1]
+            tags.append(f"model:{model_name_trimmed}")
+            for lora in loras:
+                lora_name_trimmed = lora.split("\\")[-1]
+                tags.append(f"lora:{lora_name_trimmed}")
+
+            png_data = PngData(
+                image_path=image_path,
+                tags=tags,
+                positive_prompt=positive_prompt,
+                negative_prompt=negative_prompt,
+                checkpoint=model_name,
+                loras=loras,
+                thumbnail_base64 = thumbnail_base64,
+                timestamp=timestamp,
+                raw_data=raw_data
+            )
+
+            return png_data
+        except Exception as e:
+            exc_info = sys.exc_info()
+            message = ''.join(traceback.format_exception(*exc_info))
+            return default(message)
 
 
