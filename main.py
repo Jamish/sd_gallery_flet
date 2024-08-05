@@ -82,17 +82,22 @@ def main(page: ft.Page):
         )
         database.upsert(cache_entry)
 
-    def load_images_from_directory(dir_path):
+    def load_images_from_directory(dir_path, force_refresh):
         def process_image(filename):
             image_path = os.path.join(dir_path, filename)
 
             # Check the disk cache, otherwise parse it
             png_data = database.get(image_path)
             should_update_disk_cache = False
-            if png_data is None:
+            if png_data is None or force_refresh:
                 print(".", end="")
+                favorite = False
+                if png_data:
+                    favorite = png_data.favorite
                 png_data = png_parser.parse(image_path)
+                png_data.favorite = favorite
                 should_update_disk_cache = True
+            
 
             # Save to memory cache                
             image_cache.set(image_path, png_data)
@@ -247,10 +252,10 @@ def main(page: ft.Page):
         load_gallery(selected_files)
 
 
-    def open_collection(collection: ImageCollection, e):
+    def open_collection(collection: ImageCollection, force_refresh, e):
         close_collection()
         go_to_gallery_view()
-        load_images_from_directory(collection.directory_path)
+        load_images_from_directory(collection.directory_path, force_refresh)
 
     def delete_collection(collection: ImageCollection, e):
         close_collection()
@@ -292,7 +297,11 @@ def main(page: ft.Page):
                         ft.FilledButton(
                             text="Open",
                             icon=ft.icons.FOLDER_OPEN,
-                            on_click=partial(open_collection, collection)
+                            on_click=partial(open_collection, collection, False)
+                        ),
+                        ft.IconButton(
+                            icon=ft.icons.REFRESH_ROUNDED,
+                            on_click=partial(open_collection, collection, True)
                         ),
                         ft.IconButton(
                             icon=ft.icons.DELETE_FOREVER,

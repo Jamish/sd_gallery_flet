@@ -190,8 +190,6 @@ class PngParser:
         raw_data = im.info
         thumbnail_base64 = imagez.make_thumbnail_base64(im)
 
-        print(f"Loading image {im.info}")
-
         def default(error=""):
             return PngData(
                 image_path=image_path,
