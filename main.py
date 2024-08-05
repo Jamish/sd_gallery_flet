@@ -270,7 +270,6 @@ def main(page: ft.Page):
 
 
     def create_collection_widget(collection: ImageCollection):
-        print("Creating collection!")
         print(collection)
 
         def handle_confirm(e):
@@ -292,23 +291,29 @@ def main(page: ft.Page):
                 data=collection,
                 expand=True,
                 content=ft.Column([
-                    ft.Text(collection.name),
+                    ft.Text(collection.name, size=20, weight=ft.FontWeight.BOLD,),
                     ft.Row([
                         ft.FilledButton(
                             text="Open",
                             icon=ft.icons.FOLDER_OPEN,
                             on_click=partial(open_collection, collection, False)
                         ),
-                        ft.IconButton(
-                            icon=ft.icons.REFRESH_ROUNDED,
-                            on_click=partial(open_collection, collection, True)
-                        ),
-                        ft.IconButton(
-                            icon=ft.icons.DELETE_FOREVER,
-                            on_click=lambda e: page.open(dialog)
+                        ft.PopupMenuButton(
+                            items=[
+                                ft.PopupMenuItem(
+                                    text="Refresh Images",
+                                    icon=ft.icons.REFRESH_ROUNDED,
+                                    on_click=partial(open_collection, collection, True)
+                                ),
+                                ft.PopupMenuItem(
+                                    text="Delete Collection",
+                                    icon=ft.icons.DELETE_FOREVER,
+                                    on_click=lambda e: page.open(dialog)
+                                ),
+                            ]
                         )
-                    ])
-                ])
+                    ], alignment=ft.MainAxisAlignment.CENTER)
+                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             )
     def open_new_collection_popup(e):
         def handle_create(e):
