@@ -1,6 +1,7 @@
 
 import base64
 from io import BytesIO
+import subprocess
 from typing import List
 import pyperclip
 import flet as ft
@@ -587,6 +588,8 @@ def main(page: ft.Page):
         favorites_button.update()
         page.update()
 
+    def reveal_file(image_path, e):
+        subprocess.Popen(fr'explorer /select,"{image_path}"')
 
     def create_image_popup(image_path, e):
         nonlocal image_popup
@@ -668,12 +671,18 @@ def main(page: ft.Page):
             on_click=partial(toggle_favorite, image_data),
         )
 
+        open_file_button = ft.IconButton(
+            icon=ft.icons.FOLDER_OPEN_ROUNDED,
+            tooltip="Reveal File in Explorer",
+            on_click=partial(reveal_file, image_data.image_path)
+        )
+
         image_popup = ft.Container(
             ft.Stack([
                 content,
                 ft.Column([
                     ft.Row([
-                        favorites_button,
+                        ft.Column([favorites_button, open_file_button]),
                         ft.FloatingActionButton(
                             mini=True,
                             icon=ft.icons.CLEAR_ROUNDED,
