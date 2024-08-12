@@ -25,11 +25,21 @@ from lib.tag_data import TagData
 import threading
 
 
-print("hi")
+def create_executor():
+    MAX_WORKERS = 8
+    return concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+executor = create_executor()
 stop_functions = []
 
+def stop_threads(should_create_new_executor):
+    global executor
+    print("Shutting down worker threads...")
+    executor.shutdown(wait=True, cancel_futures=True)
+    for stop_func in stop_functions:
+        stop_func()
+    if should_create_new_executor:
+        executor = create_executor()
 
 def main(page: ft.Page):
     cache_dir = ".cache"
@@ -190,6 +200,7 @@ def main(page: ft.Page):
         image_cache = ImageCache()
         clear_filter(None)
         clear_selected_tags(None)
+        stop_threads(True) # Stop all background threads (e.g., gallery loading and slideshow timer)
 
     def clear_gallery():
         image_grid.controls.clear()  # Clear existing images
@@ -800,8 +811,5 @@ def main(page: ft.Page):
 
     page.on_keyboard_event = on_keyboard
 ft.app(target=main)
-print("Shutting down worker threads...")
-executor.shutdown(wait=True, cancel_futures=True)
-for stop_func in stop_functions:
-    stop_func()
+stop_threads(False)
 print("Done! Adios!")
