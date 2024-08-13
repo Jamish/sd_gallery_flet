@@ -10,14 +10,17 @@ class ImageCollection:
 class Config:
     def __init__(self, data):
         self.collections = []
+        self.slideshow_delay = 3000
         if "collections" in data:
             for collection_data in data['collections']:
                 self.collections.append(ImageCollection(**collection_data))
+        if "slideshow_delay" in data:
+            self.slideshow_delay = data['slideshow_delay']
 
     def serialize(self):
-        
         return {
-            "collections": list(map(lambda x: asdict(x), self.collections))
+            "collections": list(map(lambda x: asdict(x), self.collections)),
+            "slideshow_delay": self.slideshow_delay
         }
 
 
@@ -59,3 +62,9 @@ class Configurations:
                     del self.config.collections[i]
         self.__save()
 
+    def get_slideshow_delay(self):
+        return self.config.slideshow_delay
+
+    def set_slideshow_delay(self, delay):
+        self.config.slideshow_delay = delay
+        self.__save()

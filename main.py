@@ -11,6 +11,7 @@ from PIL import Image
 import json
 from dataclasses import asdict, field
 from functools import partial
+from controls.settings_view import SettingsView
 from controls.slideshow_button import SlideshowButton
 from lib.configurator import Configurations, ImageCollection
 from lib.database import DiskCacheEntry, Database
@@ -78,7 +79,7 @@ def main(page: ft.Page):
                 print("Creating popup")
                 create_image_popup(current_image_grid.controls[next_index].data.image_path, None)
                 return
-    slideshow_button = SlideshowButton(next_popup)
+    slideshow_button = SlideshowButton(next_popup, config)
     stop_functions.append(slideshow_button.stop_slideshow)
         
 
@@ -472,7 +473,7 @@ def main(page: ft.Page):
 
 
     
-    
+    settings_view = SettingsView(config)
     temp_view = ft.Column(
         [
             ft.Container(
@@ -727,7 +728,7 @@ def main(page: ft.Page):
 
 
 
-    subviews = [collection_view, gallery_view, tags_view, favorites_view, temp_view]
+    subviews = [collection_view, gallery_view, tags_view, favorites_view, settings_view.control]
 
 
     rail = ft.NavigationRail(

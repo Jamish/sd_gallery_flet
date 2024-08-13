@@ -1,10 +1,13 @@
 from functools import partial
 import threading
 import flet as ft
+
+from lib.configurator import Configurations
 class SlideshowButton:
-    def __init__(self, func_next_popup):
+    def __init__(self, func_next_popup, config: Configurations):
         self.slideshow_timer = None
         self.func_next_popup = func_next_popup
+        self.config = config
 
     def new_button(self):
         self.button = ft.IconButton(
@@ -32,7 +35,8 @@ class SlideshowButton:
         next = False
         if self.is_running():
             next = True
-        self.slideshow_timer = threading.Timer(3, partial(self.start_slideshow))
+        seconds = self.config.get_slideshow_delay()/1000
+        self.slideshow_timer = threading.Timer(seconds, partial(self.start_slideshow))
         self.slideshow_timer.start()
         if next:
             self.func_next_popup(1, None)
