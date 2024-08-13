@@ -1,7 +1,6 @@
 
 import base64
 from io import BytesIO
-import random
 import subprocess
 from typing import List
 import pyperclip
@@ -12,6 +11,7 @@ from PIL import Image
 import json
 from dataclasses import asdict, field
 from functools import partial
+from controls.image_gallery import ImageGallery
 from controls.settings_view import SettingsView
 from controls.slideshow_button import SlideshowButton
 from lib.configurator import Configurations, ImageCollection
@@ -24,12 +24,8 @@ from lib.tag_cache import TagCache
 import lib.file_helpers as filez
 import lib.image_helpers as imagez
 from lib.tag_data import TagData
-import threading
 
 
-SORT_DATE_DESC = "Date: Newest First"
-SORT_DATE_ASC = "Date: Oldest First"
-SORT_SHUFFLE = "Shuffle"
 
 
 def create_executor():
@@ -79,11 +75,10 @@ def main(page: ft.Page):
 
     def next_popup(plus_or_minus_one, e):
         image_data = image_popup.data
-        for i, entry in enumerate(current_image_grid.controls):
+        for i, entry in enumerate(current_image_grid.grid.controls):
             if entry.data.image_path == image_data.image_path:
-                next_index = (i+plus_or_minus_one) % len(current_image_grid.controls)
-                print("Creating popup")
-                create_image_popup(current_image_grid.controls[next_index].data.image_path, None)
+                next_index = (i+plus_or_minus_one) % len(current_image_grid.grid.controls)
+                create_image_popup(current_image_grid.grid.controls[next_index].data.image_path, None)
                 return
     slideshow_button = SlideshowButton(next_popup, config)
     stop_functions.append(slideshow_button.stop_slideshow)
@@ -128,7 +123,8 @@ def main(page: ft.Page):
 
             return image_path
         
-        image_grid.controls.clear()  # Clear existing images
+        image_gallery.clear()
+        image_gallery_favorites.clear()
 
         # Submit image processing tasks to the thread pool
         futures = []
@@ -170,71 +166,41 @@ def main(page: ft.Page):
         tags = tag_cache.get_all()
         show_tag_buttons(tags)
 
-    def create_image_gallery_entry(png_data: PngData):
-        image_path=png_data.image_path
-        return ft.Container(
-            on_click=partial(create_image_popup, image_path),
-            content=ft.Image(
-                src_base64=png_data.thumbnail_base64, 
-                fit=ft.ImageFit.COVER,
-                key=image_path,
-                border_radius=ft.border_radius.all(5)
-                ),
-            data=png_data
-        )
-
     def add_to_gallery(image_paths):
-        nonlocal gallery_selected_sort
         for image_path in image_paths:
             png_data = image_cache.get(image_path)
             if png_data is None:
                 print(f"ERROR: png_data not found for {image_path}")
                 continue
-            image_grid.controls.append(create_image_gallery_entry(png_data))
+            image_gallery.add_image(png_data)
             if png_data.favorite:
-                image_grid_favorites.controls.append(create_image_gallery_entry(png_data))
+                image_gallery_favorites.add_image(png_data)
         print(f"Added {len(image_paths)} images to gallery.")
 
-        gallery_selected_sort = SORT_DATE_DESC
-        sort_gallery(image_grid)
-        sort_gallery(image_grid_favorites)
+        image_gallery.sort()
+        image_gallery_favorites.sort()
 
         page.update()
-
-    def sort_gallery(grid, refresh=False):
-        if gallery_selected_sort == SORT_DATE_DESC:
-            grid.controls.sort(key=lambda x: x.data.timestamp, reverse=True)
-        elif gallery_selected_sort == SORT_DATE_ASC:
-            grid.controls.sort(key=lambda x: x.data.timestamp, reverse=False)
-        elif gallery_selected_sort == SORT_SHUFFLE:
-            random.shuffle(grid.controls)
-        else:
-            print(f"Invalid sort selection {gallery_selected_sort}")
-
-        if refresh:
-            grid.update()
 
     def close_collection():
         nonlocal tag_cache
         nonlocal image_cache
-        clear_gallery()
+        image_gallery.clear()
+        image_gallery_favorites.clear()
         tag_cache = TagCache()
         image_cache = ImageCache()
         clear_filter(None)
         clear_selected_tags(None)
         stop_threads(True) # Stop all background threads (e.g., gallery loading and slideshow timer)
 
-    def clear_gallery():
-        image_grid.controls.clear()  # Clear existing images
-        image_grid_favorites.controls.clear()  # Clear existing images
- 
     def go_to_gallery_view():
         rail.selected_index = 1
         rail.update()
         load_subview(1)
 
-    def load_gallery(image_paths):
-        clear_gallery()
+    def reload_gallery_images(image_paths):
+        image_gallery.clear()
+        image_gallery_favorites.clear()
         add_to_gallery(image_paths)
         go_to_gallery_view()
 
@@ -260,7 +226,7 @@ def main(page: ft.Page):
         if len(selected_tag_buttons) == 0:
             # Last filter removed.
             clear_selected_tags(e)
-            load_gallery(all_files)
+            reload_gallery_images(all_files)
         else:
             # Re-filter the master file list against each seleted tag 
             selected_tags = [button.data for button in selected_tag_buttons]
@@ -268,7 +234,7 @@ def main(page: ft.Page):
                 selected_files = [file for file in all_files if file in tag.files]
             filters_container.controls = selected_tag_buttons
             filters_container.update()
-            load_gallery(selected_files)
+            reload_gallery_images(selected_files)
 
     def select_tag(e):
         nonlocal selected_files
@@ -283,8 +249,7 @@ def main(page: ft.Page):
             selected_files.extend(tag.files)
         else:
             selected_files = [file for file in selected_files if file in tag.files]
-        load_gallery(selected_files)
-
+        reload_gallery_images(selected_files)
 
     def open_collection(collection: ImageCollection, force_refresh, e):
         close_collection()
@@ -300,8 +265,6 @@ def main(page: ft.Page):
         config.delete_collection(collection)
         # TODO This would be avoided if I just used different Database files for each gallery
         database.delete_by_prefix(collection.directory_path)
-
-
 
     def create_collection_widget(collection: ImageCollection):
         print(collection)
@@ -442,213 +405,6 @@ def main(page: ft.Page):
         collection_grid.controls.append(create_collection_widget(collection))
 
 
-    filters_container = ft.Row(
-        vertical_alignment=ft.CrossAxisAlignment.START,
-        controls=selected_tag_buttons,
-        wrap=True,
-        spacing=10,  # Spacing between buttons
-        run_spacing=10,  # Spacing between rows
-    )
-
-    image_grid = ft.GridView(
-        expand=True,
-        runs_count=5,  # Adjust columns as needed
-        max_extent=256,  # Adjust maximum image size as needed
-        spacing=5,
-        run_spacing=5,
-        padding=ft.padding.only(right=15),
-    )
-    current_image_grid = image_grid
-
-    
-    async def zoom_slider_update(grid, e):
-        grid.max_extent = e.control.value
-        page.update()
-
-    def change_sort(grid, e):
-        nonlocal gallery_selected_sort
-        gallery_selected_sort = e.data
-        sort_gallery(grid, True)
-        return
-    
-    def create_gallery_bottom_bar(grid):
-        return ft.Row([
-            ft.Slider(min=64, max=512, value=256, label="{value}px", on_change=partial(zoom_slider_update, grid), expand=True),
-            ft.Dropdown(
-                label="Sort By",
-                width=200,
-                on_change=partial(change_sort, grid),
-                value=SORT_DATE_DESC,
-                options=[
-                    ft.dropdown.Option(SORT_DATE_DESC),
-                    ft.dropdown.Option(SORT_DATE_ASC),
-                    ft.dropdown.Option(SORT_SHUFFLE),
-                ],
-            )
-        ])
-    
-    gallery_selected_sort = SORT_DATE_DESC
-    gallery_view = ft.Container(
-        expand=True, 
-        content=ft.Column([
-            filters_container,
-            ft.Divider(height=1),
-            image_grid,
-            create_gallery_bottom_bar(image_grid)
-        ])
-    )
-
-    image_grid_favorites = ft.GridView(
-        expand=True,
-        runs_count=5,  # Adjust columns as needed
-        max_extent=256,  # Adjust maximum image size as needed
-        spacing=5,
-        run_spacing=5,
-        padding=ft.padding.only(right=15),
-    )
-
-    favorites_view = ft.Container(
-        expand=True, 
-        content=ft.Column([
-            image_grid_favorites,
-            create_gallery_bottom_bar(image_grid_favorites)
-        ])
-    )
-
-
-    
-    settings_view = SettingsView(config)
-    temp_view = ft.Column(
-        [
-            ft.Container(
-                content=ft.Text("Non clickable"),
-                margin=10,
-                padding=10,
-                alignment=ft.alignment.center,
-                bgcolor=ft.colors.AMBER,
-                width=150,
-                height=150,
-                border_radius=10,
-            )
-        ]
-    )
-
-    def show_tag_buttons(tags: List[TagData]):
-        tag_controls["models"].controls.clear()
-        tag_controls["loras"].controls.clear()
-        tag_controls["tags"].controls.clear()
-        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
-        for tag_button in tag_buttons:
-            if tag_button.data.name.startswith("model:"):
-                tag_controls["models"].controls.append(tag_button)
-            elif tag_button.data.name.startswith("lora:"):
-                tag_controls["loras"].controls.append(tag_button)
-            else:
-                tag_controls["tags"].controls.append(tag_button)
-        tags_view.update()
-
-    async def update_tag_filter(e):
-        filter = e.control.value
-        if filter:
-            filter = filter.lower()
-        tags = tag_cache.get_all()
-        matched_tags = [tag for tag in tags if filter in tag.name]
-        show_tag_buttons(matched_tags)
-        
-    def clear_filter(e):
-        nonlocal tag_filter_textfield
-        tag_filter_textfield.value = ""
-        show_tag_buttons(tag_cache.get_all())
-        page.update()
-
-
-    def make_tags_button_row():
-        return ft.Row(
-            vertical_alignment=ft.CrossAxisAlignment.START,
-            controls=None,
-            wrap=True,
-            expand=True,
-            scroll=ft.ScrollMode.ALWAYS,
-            spacing=10,  # Spacing between buttons
-            run_spacing=10,  # Spacing between rows
-        )
-    tag_controls = {
-        "models": make_tags_button_row(),
-        "loras": make_tags_button_row(),
-        "tags": make_tags_button_row(),
-    }
-    tag_filter_textfield =  ft.TextField(label="Filter...", on_change=update_tag_filter)
-    tags_view = ft.Column(
-        alignment=ft.MainAxisAlignment.START,
-        horizontal_alignment=ft.CrossAxisAlignment.START,
-        expand=True,
-        controls=[
-            ft.Container(height=10),
-            ft.Row([
-                tag_filter_textfield,
-                ft.IconButton(
-                    icon=ft.icons.CLEAR_ROUNDED,
-                    icon_color="blue400",
-                    icon_size=20,
-                    on_click=clear_filter
-                ),
-            ]),
-            # TODO Move these to a collapsible section?
-            ft.Tabs(
-                selected_index=0,
-                animation_duration=100,
-                expand=True,
-                tabs=[
-                    ft.Tab(
-                        text="Tags",
-                        content=tag_controls["tags"],
-                    ),
-                    ft.Tab(
-                        text="Loras",
-                        content=tag_controls["loras"],
-                    ),
-                    ft.Tab(
-                        text="Models",
-                        content=tag_controls["models"],
-                    ),
-                ],
-            )
-        ])
-    
-
-
-    ## TODO Use page.overlay instead of your own stack, dummy
-    image_popup = None
-
-    def close_image_popup(e):
-        nonlocal image_popup
-        image_popup.visible = False
-        slideshow_button.stop_slideshow()
-        page.update()
-
-    favorites_button = None
-
-    def toggle_favorite(image_data: PngData, e):
-        image_data.favorite = not image_data.favorite
-
-        save_png_data(image_data)
-
-        favorites_button.selected = image_data.favorite
-
-        if image_data.favorite:
-            image_grid_favorites.controls.append(create_image_gallery_entry(image_data))
-        else:
-            for i, entry in enumerate(image_grid_favorites.controls):
-                if entry.data == image_data.image_path:
-                    del image_grid_favorites.controls[i]
-
-        image_grid_favorites.update()
-        favorites_button.update()
-        page.update()
-
-    def reveal_file(image_path, e):
-        subprocess.Popen(fr'explorer /select,"{image_path}"')
-
     def create_image_popup(image_path, e):
         nonlocal image_popup
         nonlocal favorites_button
@@ -769,28 +525,144 @@ def main(page: ft.Page):
 
         page_stack.controls = [main_view, image_popup]
         page.update()
+
+    filters_container = ft.Row(
+        vertical_alignment=ft.CrossAxisAlignment.START,
+        controls=selected_tag_buttons,
+        wrap=True,
+        spacing=10,  # Spacing between buttons
+        run_spacing=10,  # Spacing between rows
+    )
+    
+    image_gallery = ImageGallery(page, filters_container, create_image_popup)
+    image_gallery_favorites = ImageGallery(page, None, create_image_popup)
+    current_image_grid = image_gallery
+    
+    settings_view = SettingsView(config)
+    
+    def show_tag_buttons(tags: List[TagData]):
+        tag_controls["models"].controls.clear()
+        tag_controls["loras"].controls.clear()
+        tag_controls["tags"].controls.clear()
+        tag_buttons = [ft.ElevatedButton(f"{tag.name} ({tag.count()})", on_click=select_tag, data=tag) for tag in tags]
+        for tag_button in tag_buttons:
+            if tag_button.data.name.startswith("model:"):
+                tag_controls["models"].controls.append(tag_button)
+            elif tag_button.data.name.startswith("lora:"):
+                tag_controls["loras"].controls.append(tag_button)
+            else:
+                tag_controls["tags"].controls.append(tag_button)
+        tags_view.update()
+
+    async def update_tag_filter(e):
+        filter = e.control.value
+        if filter:
+            filter = filter.lower()
+        tags = tag_cache.get_all()
+        matched_tags = [tag for tag in tags if filter in tag.name]
+        show_tag_buttons(matched_tags)
         
+    def clear_filter(e):
+        nonlocal tag_filter_textfield
+        tag_filter_textfield.value = ""
+        show_tag_buttons(tag_cache.get_all())
+        page.update()
 
 
+    def make_tags_button_row():
+        return ft.Row(
+            vertical_alignment=ft.CrossAxisAlignment.START,
+            controls=None,
+            wrap=True,
+            expand=True,
+            scroll=ft.ScrollMode.ALWAYS,
+            spacing=10,  # Spacing between buttons
+            run_spacing=10,  # Spacing between rows
+        )
+    tag_controls = {
+        "models": make_tags_button_row(),
+        "loras": make_tags_button_row(),
+        "tags": make_tags_button_row(),
+    }
+    tag_filter_textfield =  ft.TextField(label="Filter...", on_change=update_tag_filter)
+    tags_view = ft.Column(
+        alignment=ft.MainAxisAlignment.START,
+        horizontal_alignment=ft.CrossAxisAlignment.START,
+        expand=True,
+        controls=[
+            ft.Container(height=10),
+            ft.Row([
+                tag_filter_textfield,
+                ft.IconButton(
+                    icon=ft.icons.CLEAR_ROUNDED,
+                    icon_color="blue400",
+                    icon_size=20,
+                    on_click=clear_filter
+                ),
+            ]),
+            # TODO Move these to a collapsible section?
+            ft.Tabs(
+                selected_index=0,
+                animation_duration=100,
+                expand=True,
+                tabs=[
+                    ft.Tab(
+                        text="Tags",
+                        content=tag_controls["tags"],
+                    ),
+                    ft.Tab(
+                        text="Loras",
+                        content=tag_controls["loras"],
+                    ),
+                    ft.Tab(
+                        text="Models",
+                        content=tag_controls["models"],
+                    ),
+                ],
+            )
+        ])
 
+    ## TODO Use page.overlay instead of your own stack, dummy
+    image_popup = None
 
-    subviews = [collection_view, gallery_view, tags_view, favorites_view, settings_view.control]
+    def close_image_popup(e):
+        nonlocal image_popup
+        image_popup.visible = False
+        slideshow_button.stop_slideshow()
+        page.update()
+
+    favorites_button = None
+
+    def toggle_favorite(image_data: PngData, e):
+        image_data.favorite = not image_data.favorite
+
+        save_png_data(image_data)
+
+        favorites_button.selected = image_data.favorite
+
+        if image_data.favorite:
+            image_gallery_favorites.add_image(image_data)
+            image_gallery_favorites.sort()
+        else:
+            for i, entry in enumerate(image_gallery_favorites.grid.controls):
+                if entry.data == image_data.image_path:
+                    del image_gallery_favorites.grid.controls[i]
+
+        image_gallery_favorites.grid.update()
+        favorites_button.update()
+        page.update()
+
+    def reveal_file(image_path, e):
+        subprocess.Popen(fr'explorer /select,"{image_path}"')
+
+    subviews = [collection_view, image_gallery.view, tags_view, image_gallery_favorites.view, settings_view.control]
 
 
     rail = ft.NavigationRail(
         selected_index=0,
         label_type=ft.NavigationRailLabelType.ALL,
-        # extended=True,
         min_width=100,
         min_extended_width=400,
-        # leading=ft.FloatingActionButton(
-        #     icon=ft.icons.FOLDER_OPEN, 
-        #     text="Open Gallery", 
-        #     on_click=lambda _: pick_files_dialog.get_directory_path(
-        #         dialog_title="Open Image Folder", 
-        #         initial_directory=os.getcwd()
-        #     ),
-        # ),
         group_alignment=-0.9,
         destinations=[
             ft.NavigationRailDestination(
@@ -833,10 +705,10 @@ def main(page: ft.Page):
         current_subview = get_page(index)
         current_subview.visible = True
 
-        if current_subview == gallery_view:
-            current_image_grid = image_grid
-        if current_subview == favorites_view:
-            current_image_grid = image_grid_favorites
+        if current_subview == image_gallery.view:
+            current_image_grid = image_gallery
+        if current_subview == image_gallery_favorites.view:
+            current_image_grid = image_gallery_favorites
 
         page.update()
 
