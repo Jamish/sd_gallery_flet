@@ -549,6 +549,8 @@ def main(page: ft.Page):
 
     async def update_tag_filter(e):
         filter = e.control.value
+        if filter:
+            filter = filter.lower()
         tags = tag_cache.get_all()
         matched_tags = [tag for tag in tags if filter in tag.name]
         show_tag_buttons(matched_tags)

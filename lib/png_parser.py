@@ -66,7 +66,7 @@ class PngParser:
         else:
             positive_prompt, remains = halve(text, "\nSteps:")
 
-        lora_pattern = r"<lora:([^:]+):\d+(?:\.\d+)?>"
+        lora_pattern = r"<lora:([^:]+):\d*(?:\.\d+)?>"
         loras = re.findall(lora_pattern, positive_prompt)
 
         # Extract the model using regex
