@@ -1,6 +1,7 @@
 
 import base64
 from io import BytesIO
+import random
 import subprocess
 from typing import List
 import pyperclip
@@ -24,6 +25,11 @@ import lib.file_helpers as filez
 import lib.image_helpers as imagez
 from lib.tag_data import TagData
 import threading
+
+
+SORT_DATE_DESC = "Date: Newest First"
+SORT_DATE_ASC = "Date: Oldest First"
+SORT_SHUFFLE = "Shuffle"
 
 
 def create_executor():
@@ -178,6 +184,7 @@ def main(page: ft.Page):
         )
 
     def add_to_gallery(image_paths):
+        nonlocal gallery_selected_sort
         for image_path in image_paths:
             png_data = image_cache.get(image_path)
             if png_data is None:
@@ -188,10 +195,24 @@ def main(page: ft.Page):
                 image_grid_favorites.controls.append(create_image_gallery_entry(png_data))
         print(f"Added {len(image_paths)} images to gallery.")
 
-        image_grid.controls.sort(key=lambda x: x.data.timestamp, reverse=True)
-        image_grid_favorites.controls.sort(key=lambda x: x.data.timestamp, reverse=True)
+        gallery_selected_sort = SORT_DATE_DESC
+        sort_gallery(image_grid)
+        sort_gallery(image_grid_favorites)
 
         page.update()
+
+    def sort_gallery(grid, refresh=False):
+        if gallery_selected_sort == SORT_DATE_DESC:
+            grid.controls.sort(key=lambda x: x.data.timestamp, reverse=True)
+        elif gallery_selected_sort == SORT_DATE_ASC:
+            grid.controls.sort(key=lambda x: x.data.timestamp, reverse=False)
+        elif gallery_selected_sort == SORT_SHUFFLE:
+            random.shuffle(grid.controls)
+        else:
+            print(f"Invalid sort selection {gallery_selected_sort}")
+
+        if refresh:
+            grid.update()
 
     def close_collection():
         nonlocal tag_cache
@@ -444,13 +465,36 @@ def main(page: ft.Page):
         grid.max_extent = e.control.value
         page.update()
 
+    def change_sort(grid, e):
+        nonlocal gallery_selected_sort
+        gallery_selected_sort = e.data
+        sort_gallery(grid, True)
+        return
+    
+    def create_gallery_bottom_bar(grid):
+        return ft.Row([
+            ft.Slider(min=64, max=512, value=256, label="{value}px", on_change=partial(zoom_slider_update, grid), expand=True),
+            ft.Dropdown(
+                label="Sort By",
+                width=200,
+                on_change=partial(change_sort, grid),
+                value=SORT_DATE_DESC,
+                options=[
+                    ft.dropdown.Option(SORT_DATE_DESC),
+                    ft.dropdown.Option(SORT_DATE_ASC),
+                    ft.dropdown.Option(SORT_SHUFFLE),
+                ],
+            )
+        ])
+    
+    gallery_selected_sort = SORT_DATE_DESC
     gallery_view = ft.Container(
         expand=True, 
         content=ft.Column([
             filters_container,
             ft.Divider(height=1),
             image_grid,
-            ft.Slider(min=64, max=512, value=256, label="{value}px", on_change=partial(zoom_slider_update, image_grid)),
+            create_gallery_bottom_bar(image_grid)
         ])
     )
 
@@ -467,7 +511,7 @@ def main(page: ft.Page):
         expand=True, 
         content=ft.Column([
             image_grid_favorites,
-            ft.Slider(min=64, max=512, value=256, label="{value}px", on_change=partial(zoom_slider_update, image_grid_favorites)),
+            create_gallery_bottom_bar(image_grid_favorites)
         ])
     )
 
