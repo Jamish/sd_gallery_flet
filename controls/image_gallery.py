@@ -18,7 +18,7 @@ class ImageGallery:
     def __init__(self, page: ft.Page, filters_container, func_create_image_popup):
         self.page = page
         self.func_create_image_popup = func_create_image_popup
-        self.gallery_selected_sort = SORT_DEFAULT
+        self.selected_sort = SORT_DEFAULT
 
         self.grid = ft.GridView(
             expand=True,
@@ -45,7 +45,7 @@ class ImageGallery:
 
     def __create_bottom_bar(self):
         return ft.Row([
-            ft.Slider(min=64, max=512, value=256, label="{value}px", on_change=self.zoom_slider_update, expand=True),
+            ft.Slider(min=64, max=512, value=256, divisions=7, label="{value}px", on_change=self.zoom_slider_update, expand=True),
             ft.Dropdown(
                 label="Sort By",
                 width=200,
@@ -75,26 +75,24 @@ class ImageGallery:
                 ),
             data=png_data
         )
-        self.grid.controls.append(container)
+        self.grid.controls.insert(0, container)
 
     async def zoom_slider_update(self, e):
         self.grid.max_extent = e.control.value
         self.page.update()
 
     def change_sort(self, e):
-        self.gallery_selected_sort = e.data
-        self.sort(True)
+        self.selected_sort = e.data
+        self.sort()
         return
     
-    def sort(self, refresh=False):
-        if self.gallery_selected_sort == SORT_DATE_DESC:
+    def sort(self):
+        if self.selected_sort == SORT_DATE_DESC:
             self.grid.controls.sort(key=lambda x: x.data.timestamp, reverse=True)
-        elif self.gallery_selected_sort == SORT_DATE_ASC:
+        elif self.selected_sort == SORT_DATE_ASC:
             self.grid.controls.sort(key=lambda x: x.data.timestamp, reverse=False)
-        elif self.gallery_selected_sort == SORT_SHUFFLE:
+        elif self.selected_sort == SORT_SHUFFLE:
             random.shuffle(self.grid.controls)
         else:
-            print(f"Invalid sort selection {self.gallery_selected_sort}")
-
-        if refresh:
-            self.grid.update()
+            print(f"Invalid sort selection {self.selected_sort}")
+        self.grid.update()

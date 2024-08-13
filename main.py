@@ -26,7 +26,8 @@ import lib.image_helpers as imagez
 from lib.tag_data import TagData
 
 
-
+PARSED_IMAGE_BATCH_SIZE = 1024
+NEW_IMAGE_BATCH_SIZE = 64
 
 def create_executor():
     MAX_WORKERS = 8
@@ -83,11 +84,6 @@ def main(page: ft.Page):
     slideshow_button = SlideshowButton(next_popup, config)
     stop_functions.append(slideshow_button.stop_slideshow)
         
-
-    # def pick_files_result(e: ft.FilePickerResultEvent):
-    #     print(f"Selected path {e.path}")
-    #     load_images_from_directory(e.path)
-
     def save_png_data(png_data: PngData):
         cache_entry = DiskCacheEntry(
             image_path=png_data.image_path, 
@@ -121,7 +117,8 @@ def main(page: ft.Page):
             if (should_update_disk_cache):
                 save_png_data(png_data)
 
-            return image_path
+            is_new_image = should_update_disk_cache
+            return (image_path, is_new_image)
         
         image_gallery.clear()
         image_gallery_favorites.clear()
@@ -150,21 +147,29 @@ def main(page: ft.Page):
             nonlocal count
             count += len(futures)
             print(f"\nProcessing: {100*count/total}%")
-            image_paths = [f.result() for f in futures]
+            image_paths = [f.result()[0] for f in futures]
             add_to_gallery(image_paths)
-        batch_size = 64
+        batch_size = PARSED_IMAGE_BATCH_SIZE
+        batch_count = 0
         completed_futures = []
         for future in concurrent.futures.as_completed(futures):
+            if future.result()[1]:
+                batch_count += PARSED_IMAGE_BATCH_SIZE / NEW_IMAGE_BATCH_SIZE
+            else:
+                batch_count += 1
             completed_futures.append(future)
-            if len(completed_futures) >= batch_size:
+            if batch_count >= batch_size:
                 process_completed_futures(completed_futures)
                 completed_futures.clear()
+                batch_count = 0
         if completed_futures:
             process_completed_futures(completed_futures)
 
         # Update tags when everything is loaded
         tags = tag_cache.get_all()
         show_tag_buttons(tags)
+        image_gallery.sort()
+        image_gallery_favorites.sort()
 
     def add_to_gallery(image_paths):
         for image_path in image_paths:
@@ -176,9 +181,6 @@ def main(page: ft.Page):
             if png_data.favorite:
                 image_gallery_favorites.add_image(png_data)
         print(f"Added {len(image_paths)} images to gallery.")
-
-        image_gallery.sort()
-        image_gallery_favorites.sort()
 
         page.update()
 
@@ -723,10 +725,6 @@ def main(page: ft.Page):
     page_stack = ft.Stack([main_view], expand=True)
     page.add(page_stack)
     load_subview(0)
-
-
-    #load_images_from_directory("C:/Users/jamis/Data/SDImageBrowser/gallery")
-
 
     page.on_keyboard_event = on_keyboard
 ft.app(target=main)
