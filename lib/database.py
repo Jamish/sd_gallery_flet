@@ -51,3 +51,9 @@ class Database:
             with closing(connection.cursor()) as cursor:
                 cursor.execute("DELETE FROM images WHERE image_path LIKE ?", (directory + '%',))
                 connection.commit()
+
+    def delete(self, image_path):
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            with closing(connection.cursor()) as cursor:
+                cursor.execute("DELETE FROM images WHERE image_path = ?", (image_path,))
+                connection.commit()

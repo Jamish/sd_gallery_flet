@@ -59,6 +59,11 @@ def main(page: ft.Page):
     config = Configurations(cache_dir, "config.json")
 
     page.title = "Image Browser"
+
+    def show_toast(text: str):
+        page.snack_bar = ft.SnackBar(ft.Text(text), duration=1000)
+        page.snack_bar.open = True
+        page.update()
     
     def on_keyboard(e: ft.KeyboardEvent):
 
@@ -146,9 +151,11 @@ def main(page: ft.Page):
         def process_completed_futures(futures):
             nonlocal count
             count += len(futures)
-            print(f"\nProcessing: {100*count/total}%")
+            percent = round(100*count/total)
+            print(f"\nProcessing: {percent}%")
             image_paths = [f.result()[0] for f in futures]
             add_to_gallery(image_paths)
+            show_toast(f"Loading {percent}%")
         batch_size = PARSED_IMAGE_BATCH_SIZE
         batch_count = 0
         completed_futures = []
@@ -165,9 +172,13 @@ def main(page: ft.Page):
         if completed_futures:
             process_completed_futures(completed_futures)
 
+
         # Update tags when everything is loaded
         tags = tag_cache.get_all()
         show_tag_buttons(tags)
+        nav_rail_dest_favorites.disabled = False
+        nav_rail_dest_tags.disabled = False
+        show_toast(f"Finished loading {collection.name}!")
         image_gallery.sort()
         image_gallery_favorites.sort()
 
@@ -255,6 +266,9 @@ def main(page: ft.Page):
 
     def open_collection(collection: ImageCollection, force_refresh, e):
         close_collection()
+        show_toast(f"Opening {collection.name}")
+        nav_rail_dest_favorites.disabled = True
+        nav_rail_dest_tags.disabled = True
         go_to_gallery_view()
         load_images_from_directory(collection.directory_path, force_refresh)
 
@@ -493,12 +507,49 @@ def main(page: ft.Page):
             on_click=partial(reveal_file, image_data.image_path)
         )
 
+        def handle_delete(image_path, e):
+            
+            for i, entry in enumerate(image_gallery.grid.controls):
+                if entry.data.image_path == image_path:
+                    del image_gallery.grid.controls[i]
+            for i, entry in enumerate(image_gallery_favorites.grid.controls):
+                if entry.data.image_path == image_path:
+                    del image_gallery_favorites.grid.controls[i]
+            
+            os.remove(image_path) 
+            database.delete(image_path)
+
+            show_toast(f"Deleted {os.path.basename(image_data.image_path)}.")
+
+            image_gallery.grid.update()
+            image_gallery_favorites.grid.update()
+            page.update()
+            page.close(dialog)
+            next_popup(1, None)
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(f"Delete {os.path.basename(image_data.image_path)}"),
+            content=ft.Text(f"Are you sure you want to delete {image_data.image_path} from both file system and gallery?"),
+            actions=[
+                ft.TextButton("Yes", on_click=partial(handle_delete, image_data.image_path)),
+                ft.TextButton("No", on_click=lambda e: page.close(dialog)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        delete_file_button = ft.IconButton(
+            icon=ft.icons.DELETE_FOREVER,
+            tooltip="Delete File",
+            on_click=lambda e: page.open(dialog)
+        )
+
         image_popup = ft.Container(
             ft.Stack([
                 content,
                 ft.Column([
                     ft.Row([
-                        ft.Column([favorites_button, open_file_button]),
+                        ft.Column([favorites_button, open_file_button, delete_file_button]),
                         ft.FloatingActionButton(
                             mini=True,
                             icon=ft.icons.CLEAR_ROUNDED,
@@ -647,7 +698,7 @@ def main(page: ft.Page):
             image_gallery_favorites.sort()
         else:
             for i, entry in enumerate(image_gallery_favorites.grid.controls):
-                if entry.data == image_data.image_path:
+                if entry.data.image_path == image_data.image_path:
                     del image_gallery_favorites.grid.controls[i]
 
         image_gallery_favorites.grid.update()
@@ -659,6 +710,15 @@ def main(page: ft.Page):
 
     subviews = [collection_view, image_gallery.view, tags_view, image_gallery_favorites.view, settings_view.control]
 
+
+    nav_rail_dest_tags = ft.NavigationRailDestination(
+        icon_content=ft.Icon(ft.icons.BOOKMARK_BORDER),
+        selected_icon_content=ft.Icon(ft.icons.BOOKMARK),
+        label="Tags",
+    )
+    nav_rail_dest_favorites = ft.NavigationRailDestination(
+        icon=ft.icons.FAVORITE_BORDER, selected_icon=ft.icons.FAVORITE, label="Favorites"
+    )
 
     rail = ft.NavigationRail(
         selected_index=0,
@@ -677,14 +737,8 @@ def main(page: ft.Page):
                 selected_icon_content=ft.Icon(ft.icons.GRID_VIEW_SHARP),
                 label="Images",
             ),
-            ft.NavigationRailDestination(
-                icon_content=ft.Icon(ft.icons.BOOKMARK_BORDER),
-                selected_icon_content=ft.Icon(ft.icons.BOOKMARK),
-                label="Tags",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.icons.FAVORITE_BORDER, selected_icon=ft.icons.FAVORITE, label="Favorites"
-            ),
+            nav_rail_dest_tags,
+            nav_rail_dest_favorites,
             ft.NavigationRailDestination(
                 icon=ft.icons.SETTINGS_OUTLINED,
                 selected_icon_content=ft.Icon(ft.icons.SETTINGS),
