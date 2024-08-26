@@ -4,6 +4,9 @@
 ### Running
 python main.py
 
-### Exporting
+### Re-generating main.spec
 `pip install pyinstaller`
 `pyinstaller --onefile main.py`
+
+### Compiling for Windows
+`rm -rf build/ && rm -rf dist/ && pyinstaller main.spec`

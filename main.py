@@ -27,7 +27,7 @@ from lib.tag_data import TagData
 
 
 PARSED_IMAGE_BATCH_SIZE = 1024
-NEW_IMAGE_BATCH_SIZE = 64
+NEW_IMAGE_BATCH_SIZE = 256
 
 def create_executor():
     MAX_WORKERS = 8
