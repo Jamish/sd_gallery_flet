@@ -204,6 +204,9 @@ def main(page: ft.Page):
         image_gallery_favorites.clear()
         tag_cache = TagCache()
         image_cache = ImageCache()
+        nav_rail_dest_images.disabled = True
+        nav_rail_dest_favorites.disabled = True
+        nav_rail_dest_tags.disabled = True
         clear_filter(None)
         clear_selected_tags(None)
         stop_threads(True) # Stop all background threads (e.g., gallery loading and slideshow timer)
@@ -269,6 +272,7 @@ def main(page: ft.Page):
     def open_collection(collection: ImageCollection, force_refresh, e):
         close_collection()
         show_toast(f"Opening {collection.name}")
+        nav_rail_dest_images.disabled = False
         nav_rail_dest_favorites.disabled = True
         nav_rail_dest_tags.disabled = True
         go_to_gallery_view()
@@ -594,7 +598,13 @@ def main(page: ft.Page):
     image_gallery_favorites = ImageGallery(page, None, create_image_popup)
     current_image_grid = image_gallery
     
-    settings_view = SettingsView(config)
+    def set_images_per_page(x):
+        x = int(x)
+        image_gallery.images_per_page = x
+        image_gallery.update()
+        image_gallery_favorites.images_per_page = x
+        image_gallery_favorites.update()
+    settings_view = SettingsView(config, func_set_images_per_page=set_images_per_page)
     
     def show_tag_buttons(tags: List[TagData]):
         tag_controls["models"].controls.clear()
@@ -713,14 +723,20 @@ def main(page: ft.Page):
 
     subviews = [collection_view, image_gallery.view, tags_view, image_gallery_favorites.view, settings_view.control]
 
-
+    nav_rail_dest_images = ft.NavigationRailDestination(
+        icon_content=ft.Icon(ft.icons.GRID_VIEW_OUTLINED),
+        selected_icon_content=ft.Icon(ft.icons.GRID_VIEW_SHARP),
+        label="Images",
+        disabled=True,
+    )
     nav_rail_dest_tags = ft.NavigationRailDestination(
         icon_content=ft.Icon(ft.icons.BOOKMARK_BORDER),
         selected_icon_content=ft.Icon(ft.icons.BOOKMARK),
         label="Tags",
+        disabled=True,
     )
     nav_rail_dest_favorites = ft.NavigationRailDestination(
-        icon=ft.icons.FAVORITE_BORDER, selected_icon=ft.icons.FAVORITE, label="Favorites"
+        icon=ft.icons.FAVORITE_BORDER, selected_icon=ft.icons.FAVORITE, label="Favorites", disabled=True,
     )
 
     rail = ft.NavigationRail(
@@ -735,11 +751,7 @@ def main(page: ft.Page):
                 selected_icon_content=ft.Icon(ft.icons.FOLDER_COPY_ROUNDED),
                 label="Collections",
             ),
-            ft.NavigationRailDestination(
-                icon_content=ft.Icon(ft.icons.GRID_VIEW_OUTLINED),
-                selected_icon_content=ft.Icon(ft.icons.GRID_VIEW_SHARP),
-                label="Images",
-            ),
+            nav_rail_dest_images,
             nav_rail_dest_tags,
             nav_rail_dest_favorites,
             ft.NavigationRailDestination(
