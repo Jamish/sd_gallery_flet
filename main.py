@@ -191,6 +191,8 @@ def main(page: ft.Page):
             image_gallery.add_image(png_data)
             if png_data.favorite:
                 image_gallery_favorites.add_image(png_data)
+        image_gallery.update()
+        image_gallery_favorites.update()
         print(f"Added {len(image_paths)} images to gallery.")
 
         page.update()
@@ -299,7 +301,7 @@ def main(page: ft.Page):
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-
+        # TODO - Use a Card which has all this already
         return ft.Container(
                 data=collection,
                 expand=True,
