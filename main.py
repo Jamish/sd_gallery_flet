@@ -81,10 +81,10 @@ def main(page: ft.Page):
 
     def next_popup(plus_or_minus_one, e):
         image_data = image_popup.data
-        for i, entry in enumerate(current_image_grid.grid.controls):
+        for i, entry in enumerate(current_image_grid.images):
             if entry.data.image_path == image_data.image_path:
-                next_index = (i+plus_or_minus_one) % len(current_image_grid.grid.controls)
-                create_image_popup(current_image_grid.grid.controls[next_index].data.image_path, None)
+                next_index = (i+plus_or_minus_one) % len(current_image_grid.images)
+                create_image_popup(current_image_grid.images[next_index].data.image_path, None)
                 return
     slideshow_button = SlideshowButton(next_popup, config)
     stop_functions.append(slideshow_button.stop_slideshow)
@@ -191,8 +191,8 @@ def main(page: ft.Page):
             image_gallery.add_image(png_data)
             if png_data.favorite:
                 image_gallery_favorites.add_image(png_data)
-        image_gallery.update()
-        image_gallery_favorites.update()
+        image_gallery.update_on_first_page()
+        image_gallery_favorites.update_on_first_page()
         print(f"Added {len(image_paths)} images to gallery.")
 
         page.update()
@@ -510,13 +510,14 @@ def main(page: ft.Page):
         )
 
         def handle_delete(image_path, e):
-            
-            for i, entry in enumerate(image_gallery.grid.controls):
-                if entry.data.image_path == image_path:
-                    del image_gallery.grid.controls[i]
-            for i, entry in enumerate(image_gallery_favorites.grid.controls):
-                if entry.data.image_path == image_path:
-                    del image_gallery_favorites.grid.controls[i]
+            # for i, entry in enumerate(image_gallery.images):
+            #     if entry.data.image_path == image_path:
+            #         del image_gallery.grid.controls[i]
+            # for i, entry in enumerate(image_gallery_favorites.grid.controls):
+            #     if entry.data.image_path == image_path:
+            #         del image_gallery_favorites.grid.controls[i]
+            image_gallery.delete(image_path)
+            image_gallery_favorites.delete(image_path)
             
             os.remove(image_path) 
             database.delete(image_path)

@@ -100,7 +100,8 @@ class ImageGallery:
                 ),
             data=png_data
         )
-        self.images.append(container)
+        # Is it ok to store all these Containers instead of just PNG data? 
+        self.images.insert(0, container)
         # self.grid.controls.insert(0, container)
 
     def jump_to_page(self, e):
@@ -121,6 +122,9 @@ class ImageGallery:
         self.update() 
         self.grid.scroll_to(offset=-1)
 
+    def update_on_first_page(self):
+        self.page_id = 0
+        self.update()
 
     def update(self):
         print(f"Showing page {self.page_id + 1} of {self.page_count()}")
@@ -151,3 +155,10 @@ class ImageGallery:
             print(f"Invalid sort selection {self.selected_sort}")
         self.update()
         self.page.update()
+
+    def delete(self, image_path):
+        for i, entry in enumerate(self.images):
+            if entry.data.image_path == image_path:
+                del self.images[i]
+                break
+        self.update()
