@@ -26,8 +26,8 @@ import lib.image_helpers as imagez
 from lib.tag_data import TagData
 
 
-PARSED_IMAGE_BATCH_SIZE = 1024
-NEW_IMAGE_BATCH_SIZE = 256
+PARSED_IMAGE_BATCH_SIZE = 512
+NEW_IMAGE_BATCH_SIZE = 512
 
 def create_executor():
     MAX_WORKERS = 8
