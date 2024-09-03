@@ -26,8 +26,8 @@ import lib.image_helpers as imagez
 from lib.tag_data import TagData
 
 
-PARSED_IMAGE_BATCH_SIZE = 512
-NEW_IMAGE_BATCH_SIZE = 512
+PARSED_IMAGE_BATCH_SIZE = 256
+NEW_IMAGE_BATCH_SIZE = 256
 
 def create_executor():
     MAX_WORKERS = 8
@@ -407,7 +407,7 @@ def main(page: ft.Page):
     collection_grid = ft.GridView(
         expand=True,
         runs_count=5,  # Adjust columns as needed
-        max_extent=256,  # Adjust maximum image size as needed
+        max_extent=192,  # Adjust maximum image size as needed
         spacing=5,
         run_spacing=5,
         padding=ft.padding.only(right=15),
@@ -594,8 +594,8 @@ def main(page: ft.Page):
         run_spacing=10,  # Spacing between rows
     )
     
-    image_gallery = ImageGallery(page, filters_container, create_image_popup)
-    image_gallery_favorites = ImageGallery(page, None, create_image_popup)
+    image_gallery = ImageGallery(page, config, filters_container, create_image_popup)
+    image_gallery_favorites = ImageGallery(page, config, None, create_image_popup)
     current_image_grid = image_gallery
     
     def set_images_per_page(x):

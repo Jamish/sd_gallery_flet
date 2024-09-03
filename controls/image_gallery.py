@@ -4,6 +4,8 @@ import threading
 import math
 import flet as ft
 
+from lib.configurator import Configurations
+
 SORT_DATE_DESC = "Date: Newest First"
 SORT_DATE_ASC = "Date: Oldest First"
 SORT_SHUFFLE = "Shuffle"
@@ -12,20 +14,20 @@ SORT_DEFAULT = SORT_DATE_DESC
 
 
 class ImageGallery:
-    def __init__(self, page: ft.Page, filters_container, func_create_image_popup):
+    def __init__(self, page: ft.Page, config: Configurations, filters_container, func_create_image_popup):
         self.page = page
         self.page_id = 0## For Pagination
         self.func_create_image_popup = func_create_image_popup
         self.selected_sort = SORT_DEFAULT
 
-        self.images_per_page = 128
+        self.images_per_page = int(config.get_config("images_per_page"))
 
         self.images = []
 
         self.grid = ft.GridView(
             expand=True,
             runs_count=5,  # Adjust columns as needed
-            max_extent=256,  # Adjust maximum image size as needed
+            max_extent=192,  # Adjust maximum image size as needed
             spacing=5,
             run_spacing=5,
             padding=ft.padding.only(right=15),

@@ -35,7 +35,7 @@ class SlideshowButton:
         next = False
         if self.is_running():
             next = True
-        seconds = self.config.get_slideshow_delay()/1000
+        seconds = self.config.get_config("slideshow_delay")/1000
         self.slideshow_timer = threading.Timer(seconds, partial(self.start_slideshow))
         self.slideshow_timer.start()
         if next:
