@@ -34,13 +34,13 @@ def create_executor():
     return concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 executor = create_executor()
-stop_functions = []
+application_quit_hooks = []
 
 def stop_threads(should_create_new_executor):
     global executor
     print("Shutting down worker threads...")
     executor.shutdown(wait=True, cancel_futures=True)
-    for stop_func in stop_functions:
+    for stop_func in application_quit_hooks:
         stop_func()
     if should_create_new_executor:
         executor = create_executor()
@@ -75,11 +75,14 @@ def main(page: ft.Page):
             if e.key == "F":
                 toggle_favorite(image_popup.data, None)
             if e.key == "Arrow Right" or e.key == "D":
-                next_popup(1, None)
+                next_popup(1, e)
             if e.key == "Arrow Left" or e.key == "A":
-                next_popup(-1, None)
+                next_popup(-1, e)
 
     def next_popup(plus_or_minus_one, e):
+        if e is not None:
+            slideshow_button.reset_timer_if_running()
+
         image_data = image_popup.data
         for i, entry in enumerate(current_image_grid.images):
             if entry.data.image_path == image_data.image_path:
@@ -87,7 +90,7 @@ def main(page: ft.Page):
                 create_image_popup(current_image_grid.images[next_index].data.image_path, None)
                 return
     slideshow_button = SlideshowButton(next_popup, config)
-    stop_functions.append(slideshow_button.stop_slideshow)
+    application_quit_hooks.append(slideshow_button.stop_slideshow)
         
     def save_png_data(png_data: PngData):
         cache_entry = DiskCacheEntry(
@@ -532,7 +535,7 @@ def main(page: ft.Page):
             image_gallery_favorites.grid.update()
             page.update()
             page.close(dialog)
-            next_popup(1, None)
+            next_popup(1, e)
 
         dialog = ft.AlertDialog(
             modal=True,

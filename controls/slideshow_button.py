@@ -1,7 +1,6 @@
 from functools import partial
 import threading
 import flet as ft
-
 from lib.configurator import Configurations
 class SlideshowButton:
     def __init__(self, func_next_popup, config: Configurations):
@@ -45,6 +44,12 @@ class SlideshowButton:
         if self.is_running():
             self.slideshow_timer.cancel()
             self.slideshow_timer = None
+
+    def reset_timer_if_running(self):
+        if self.is_running():
+            print("reset slideshow timer")
+            self.stop_slideshow()
+            self.start_slideshow()
 
     def is_running(self):
         return self.slideshow_timer != None
