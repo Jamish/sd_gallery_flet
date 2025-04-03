@@ -139,7 +139,7 @@ def main(page: ft.Page):
             for root, dirs, files in os.walk(dir_path):
                 for file in files:
                     all_files.append(os.path.join(root, file))  # Get the full path
-            return all_files
+            return list(set(all_files))
         # file_list = os.listdir(dir_path)
         file_list = get_all_files(dir_path)
         print(f"Loading {len(file_list)} images")
