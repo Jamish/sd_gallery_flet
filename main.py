@@ -142,9 +142,9 @@ def main(page: ft.Page):
             return list(set(all_files))
         # file_list = os.listdir(dir_path)
         file_list = get_all_files(dir_path)
-        print(f"Loading {len(file_list)} images")
+        print(f"Loading {len(file_list)} files")
         for filename in file_list:
-            if filename.lower().endswith((".png")):
+            if filename.lower().endswith((".png")) and not os.path.basename(filename).startswith("."):
                 future = executor.submit(process_image, filename)
                 futures.append(future)
         
