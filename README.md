@@ -7,10 +7,12 @@ This tool lets you load up a folder and see all models, LORAs, and tags (with a 
 https://github.com/user-attachments/assets/78f90fc8-0c8b-48ac-8485-f2d8bf9e4557
 
 It supports
-* Loading up an entire directory as a gallery; supports multiple galleries
-* Parsing the models, LORAs, and tags used, and has tabs to show the frequency of models, LORAs, and tags, as well as filtering the gallery based on model/LORA/tag
+* Loads an entire directory as a collection; supports multiple collections
+* Gallery view, with zoom, sorting, and shuffling
+* Image viewer that shows the resources and prompts used, along with Copy Prompt buttons
+* Parses the models, LORAs, and tags used, and has tabs to show the frequency of models, LORAs, and tags, as well as filtering the gallery based on model/LORA/tag
+* Optimized for remote servers: It uses a local cache with image thumbnails and metadata, so images are only parsed once, and the gallery view loads fast. The full-sized file is asynchronously loaded when you click into the image from the gallery view.
 * A favorites feature
-* A local SQL Lite database with the metadata and thumbnails of your images, so the metadata parsing only has to happen once. Also useful if your gallery is located on a remote server, like a NAS.
 * A slideshow feature
 
 Caveats:
