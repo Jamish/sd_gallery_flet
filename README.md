@@ -20,7 +20,7 @@ Caveats:
   * The ComfyUI parsing is **VERY** specifically tailored to the workflows that I personally use, so you may have to get your hands dirty and customize your own parser for your images' metadata.
 * I don't have good documentation. This was a private repo until today.
 * Performance is sus when filtering your list of tags, especially if you have tons of different tags
-* Speaking of parsing tags -- it's a fairly naive approach that splits on commas and line breaks. There is no booru-style tag parsing, and natural language prompts will probably appear as long, unique tags.
+* Speaking of parsing tags -- it's a fairly naive approach that splits on commas and line breaks. There is no referencing of existing tag datsets, and natural language prompts will probably appear as long, unique tags.
 
 ### Installation
 `pip install -r requirements.txt`
