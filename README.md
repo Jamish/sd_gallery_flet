@@ -4,7 +4,7 @@ A Stable Diffusion image browser written in Python with Flet for the UI. I wrote
 
 This tool lets you load up a folder and see all models, LORAs, and tags (with a frequency counter)! 
 
-http://raw.githubusercontent.com/Jamish/sd_gallery_flet/main/video/sd-gallery-flet.mp4
+https://github.com/user-attachments/assets/78f90fc8-0c8b-48ac-8485-f2d8bf9e4557
 
 It supports
 * Loading up an entire directory as a gallery; supports multiple galleries
