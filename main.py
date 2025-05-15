@@ -2,6 +2,7 @@
 import base64
 from io import BytesIO
 import subprocess
+import threading
 from typing import List
 import pyperclip
 import flet as ft
@@ -179,6 +180,10 @@ def main(page: ft.Page):
         # Update tags when everything is loaded
         tags = tag_cache.get_all()
         show_tag_buttons(tags)
+        # top_tags = list(filter(lambda x: not "model" in x.name and not "lora" in x.name, tags))
+        # top_tags = top_tags[:500]
+        # print(f"Printing top {len(top_tags)} tags:")
+        # print(", ".join(map(lambda x: x.name, top_tags)))
         nav_rail_dest_favorites.disabled = False
         nav_rail_dest_tags.disabled = False
         show_toast(f"Finished loading {collection.name}!")
@@ -623,13 +628,20 @@ def main(page: ft.Page):
                 tag_controls["tags"].controls.append(tag_button)
         tags_view.update()
 
+    update_tag_filter_timer = None
     async def update_tag_filter(e):
-        filter = e.control.value
-        if filter:
-            filter = filter.lower()
-        tags = tag_cache.get_all()
-        matched_tags = [tag for tag in tags if filter in tag.name]
-        show_tag_buttons(matched_tags)
+        nonlocal update_tag_filter_timer
+        def update_tag_filter_internal(): 
+            filter = e.control.value
+            if filter:
+                filter = filter.lower()
+            tags = tag_cache.get_all()
+            matched_tags = [tag for tag in tags if filter in tag.name]
+            show_tag_buttons(matched_tags)
+        if update_tag_filter_timer != None:
+            update_tag_filter_timer.cancel()
+        update_tag_filter_timer = threading.Timer(0.5, partial(update_tag_filter_internal))
+        update_tag_filter_timer.start()
         
     def clear_filter(e):
         nonlocal tag_filter_textfield
