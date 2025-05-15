@@ -186,7 +186,7 @@ def main(page: ft.Page):
         # print(", ".join(map(lambda x: x.name, top_tags)))
         nav_rail_dest_favorites.disabled = False
         nav_rail_dest_tags.disabled = False
-        show_toast(f"Finished loading {collection.name}!")
+        show_toast(f"Finished loading!")
         image_gallery.sort()
         image_gallery_favorites.sort()
 
@@ -614,7 +614,9 @@ def main(page: ft.Page):
         image_gallery_favorites.update()
     settings_view = SettingsView(config, func_set_images_per_page=set_images_per_page)
     
+    # Creates the tags
     def show_tag_buttons(tags: List[TagData]):
+        print("show_tag_buttons")
         tag_controls["models"].controls.clear()
         tag_controls["loras"].controls.clear()
         tag_controls["tags"].controls.clear()
@@ -627,6 +629,16 @@ def main(page: ft.Page):
             else:
                 tag_controls["tags"].controls.append(tag_button)
         tags_view.update()
+    
+    # Hides all tags and shows only the necessary tags
+    def filter_tag_buttons(filter: str): 
+        for tag_button in tag_controls["models"].controls:
+            tag_button.visible = filter in tag_button.data.name
+        for tag_button in tag_controls["loras"].controls:
+            tag_button.visible = filter in tag_button.data.name
+        for tag_button in tag_controls["tags"].controls:
+            tag_button.visible = filter in tag_button.data.name
+        tags_view.update()
 
     update_tag_filter_timer = None
     async def update_tag_filter(e):
@@ -635,9 +647,7 @@ def main(page: ft.Page):
             filter = e.control.value
             if filter:
                 filter = filter.lower()
-            tags = tag_cache.get_all()
-            matched_tags = [tag for tag in tags if filter in tag.name]
-            show_tag_buttons(matched_tags)
+            filter_tag_buttons(filter)
         if update_tag_filter_timer != None:
             update_tag_filter_timer.cancel()
         update_tag_filter_timer = threading.Timer(0.5, partial(update_tag_filter_internal))
