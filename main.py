@@ -25,7 +25,8 @@ from lib.tag_cache import TagCache
 import lib.file_helpers as filez
 import lib.image_helpers as imagez
 from lib.tag_data import TagData
-
+from datetime import datetime
+import shutil
 
 PARSED_IMAGE_BATCH_SIZE = 256
 NEW_IMAGE_BATCH_SIZE = 256
@@ -190,6 +191,71 @@ def main(page: ft.Page):
         image_gallery.sort()
         image_gallery_favorites.sort()
 
+    def reorganize_directory(dir_path):
+        """
+        Walk through all files under dir_path, group each .png into a YYYY-MM subfolder,
+        and update the cache entry for each image with its new path.
+        """
+        # 1) Gather all PNG files (full paths), skipping hidden files
+        file_list = []
+        for root, dirs, files in os.walk(dir_path):
+            for file in files:
+                if not file.lower().endswith(".png"):
+                    continue
+                # ignore hidden files
+                if file.startswith("."):
+                    continue
+                full_path = os.path.join(root, file)
+                file_list.append(full_path)
+
+        print(f"Loading {len(file_list)} files...")
+        count = 0
+
+        for image_path in file_list:
+            count = count + 1
+            print(f"\nProcessing image {count}")
+            # 2) Determine creation timestamp and target folder name (YYYY-MM)
+            try:
+                ctime = os.path.getctime(image_path)
+            except OSError:
+                # if for any reason we can’t stat the file, skip it
+                print(f"Cannot stat file {image_path}")
+                continue
+
+            dt = datetime.fromtimestamp(ctime)
+            target_folder_name = dt.strftime("%Y-%m")
+            target_folder_path = os.path.join(dir_path, target_folder_name)
+
+            # 3) Check if it’s already in the correct YYYY-MM folder
+            current_parent = os.path.basename(os.path.dirname(image_path))
+            if current_parent == target_folder_name:
+                # Already organized, so skip moving/updating
+                print(f"Already organized: {image_path}")
+                continue
+
+            # 4) Create the YYYY-MM folder if it doesn’t exist
+            if not os.path.exists(target_folder_path):
+                print(f"Creating {target_folder_path}")
+                os.makedirs(target_folder_path, exist_ok=True)
+
+            # 5) Move the file into YYYY-MM
+            new_path = os.path.join(target_folder_path, os.path.basename(image_path))
+            try:
+                print(f"Moving to {new_path}")
+                shutil.move(image_path, new_path)
+            except Exception as e:
+                print(f"Failed to move {image_path} → {new_path}: {e}")
+                continue
+
+            # 6) Update cache: lookup by the old path, then set image_path to new_path
+            png_data = database.get(image_path)
+            if png_data:
+                png_data.image_path = new_path
+                save_png_data(png_data)
+
+
+        show_toast("Finished reorganizing!")
+
     def add_to_gallery(image_paths):
         for image_path in image_paths:
             png_data = image_cache.get(image_path)
@@ -286,6 +352,11 @@ def main(page: ft.Page):
         go_to_gallery_view()
         load_images_from_directory(collection.directory_path, force_refresh)
 
+    def reorganize_collection(collection: ImageCollection, e):
+        close_collection()
+        show_toast(f"Reorganizing {collection.name}")
+        reorganize_directory(collection.directory_path)
+
     def delete_collection(collection: ImageCollection, e):
         close_collection()
         for i, collection_widget in enumerate(collection_grid.controls):
@@ -331,6 +402,11 @@ def main(page: ft.Page):
                                     text="Refresh Images",
                                     icon=ft.icons.REFRESH_ROUNDED,
                                     on_click=partial(open_collection, collection, True)
+                                ),
+                                ft.PopupMenuItem(
+                                    text="Sort Images Into YYYY-MM Folders",
+                                    icon=ft.icons.CALENDAR_MONTH_ROUNDED,
+                                    on_click=partial(reorganize_collection, collection)
                                 ),
                                 ft.PopupMenuItem(
                                     text="Delete Collection",
