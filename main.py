@@ -191,29 +191,35 @@ def main(page: ft.Page):
         image_gallery.sort()
         image_gallery_favorites.sort()
 
-    def reorganize_directory(dir_path):
+    def reorganize_directory(dir_path, quickOrganize=False):
         """
         Walk through all files under dir_path, group each .png into a YYYY-MM subfolder,
         and update the cache entry for each image with its new path.
         """
+
+        def isImage(file):
+            return file.lower().endswith(".png") and not file.startswith(".")
+
         # 1) Gather all PNG files (full paths), skipping hidden files
         file_list = []
-        for root, dirs, files in os.walk(dir_path):
-            for file in files:
-                if not file.lower().endswith(".png"):
-                    continue
-                # ignore hidden files
-                if file.startswith("."):
-                    continue
-                full_path = os.path.join(root, file)
-                file_list.append(full_path)
+
+        if quickOrganize:
+            for file in os.listdir(dir_path):
+                if isImage(file):
+                    file_list.append(os.path.join(dir_path, file))
+        else:
+            for root, dirs, files in os.walk(dir_path):
+                for file in files:
+                    if not isImage(file):
+                        continue
+                    full_path = os.path.join(root, file)
+                    file_list.append(full_path)
 
         print(f"Loading {len(file_list)} files...")
         count = 0
 
         for image_path in file_list:
             count = count + 1
-            print(f"\nProcessing image {count}")
             # 2) Determine creation timestamp and target folder name (YYYY-MM)
             try:
                 ctime = os.path.getctime(image_path)
@@ -232,6 +238,7 @@ def main(page: ft.Page):
                 # Already organized, so skip moving/updating
                 print(f"Already organized: {image_path}")
                 continue
+            print(f"\nProcessing image {count}: {current_parent}/{os.path.basename(image_path)}")
 
             # 4) Create the YYYY-MM folder if it doesn’t exist
             if not os.path.exists(target_folder_path):
@@ -355,7 +362,12 @@ def main(page: ft.Page):
     def reorganize_collection(collection: ImageCollection, e):
         close_collection()
         show_toast(f"Reorganizing {collection.name}")
-        reorganize_directory(collection.directory_path)
+        reorganize_directory(collection.directory_path, False)
+
+    def reorganize_collection_quick(collection: ImageCollection, e):
+        close_collection()
+        show_toast(f"Quick organizing {collection.name}")
+        reorganize_directory(collection.directory_path, True)
 
     def delete_collection(collection: ImageCollection, e):
         close_collection()
@@ -377,13 +389,39 @@ def main(page: ft.Page):
         dialog = ft.AlertDialog(
             modal=True,
             title=ft.Text(f"Delete {collection.name}"),
-            content=ft.Text(f"Do you really want to delete collection {collection.name}, including favorites?"),
+            content=ft.Text(f"Do you really want to remove the collection {collection.name} from the app? Your file system will not be changed."),
             actions=[
                 ft.TextButton("Yes", on_click=handle_confirm),
-                ft.TextButton("No", on_click=lambda e: page.close(dialog)),
+                ft.TextButton("Cancel", on_click=lambda e: page.close(dialog)),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
+
+        def make_dialog(title, content, action):
+            # create the dialog first so we can reference it in our handlers
+            new_dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text(title),
+                content=ft.Text(content),
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+
+            # yes‐handler: run the action, then close this dialog
+            def _on_yes(e):
+                page.close(new_dialog)
+                action()
+
+            # cancel‐handler: just close the dialog
+            def _on_cancel(e):
+                page.close(new_dialog)
+
+            # assign the two buttons
+            new_dialog.actions = [
+                ft.TextButton("Yes", on_click=_on_yes),
+                ft.TextButton("Cancel", on_click=_on_cancel),
+            ]
+
+            return new_dialog
         # TODO - Use a Card which has all this already
         return ft.Container(
                 data=collection,
@@ -401,12 +439,35 @@ def main(page: ft.Page):
                                 ft.PopupMenuItem(
                                     text="Refresh Images",
                                     icon=ft.icons.REFRESH_ROUNDED,
-                                    on_click=partial(open_collection, collection, True)
+                                    on_click=lambda e: page.open(
+                                        make_dialog(
+                                            f"Refresh {collection.name}",
+                                            f"Refresh all tags and thumbnails for your gallery. Favorite flags are preserved. Continue?",
+                                            partial(open_collection, collection, True, e)
+                                        )
+                                    )
                                 ),
                                 ft.PopupMenuItem(
-                                    text="Sort Images Into YYYY-MM Folders",
+                                    text="Quick Organize (YYYY-MM)",
                                     icon=ft.icons.CALENDAR_MONTH_ROUNDED,
-                                    on_click=partial(reorganize_collection, collection)
+                                    on_click=lambda e: page.open(
+                                        make_dialog(
+                                            f"Quick Organize {collection.name}",
+                                            f"This operation finds loose images in your gallery's directory, and moves them to a YYYY-MM directory based on their creation date. This will modify your filesystem. Continue?",
+                                            partial(reorganize_collection_quick, collection, e)
+                                        )
+                                    )
+                                ),
+                                ft.PopupMenuItem(
+                                    text="Reorganize All (YYYY-MM)",
+                                    icon=ft.icons.CALENDAR_MONTH_ROUNDED,
+                                    on_click=lambda e: page.open(
+                                        make_dialog(
+                                            f"Reorganize {collection.name}",
+                                            f"This operation finds ALL images in your gallery's directory, and moves them to a YYYY-MM directory based on their creation date. This will modify your filesystem. Continue?",
+                                            partial(reorganize_collection, collection, e)
+                                        )
+                                    )
                                 ),
                                 ft.PopupMenuItem(
                                     text="Delete Collection",
