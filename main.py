@@ -56,9 +56,8 @@ def main(page: ft.Page):
     tag_cache = TagCache()
     image_cache = ImageCache()
     database = Database(cache_dir, "data.sqlite3")
-    database.try_create_database()
 
-    config = Configurations(cache_dir, "config.json")
+    config = Configurations(cache_dir, "config.json", database)
 
     page.title = "Image Browser"
 
@@ -94,19 +93,24 @@ def main(page: ft.Page):
     slideshow_button = SlideshowButton(next_popup, config)
     application_quit_hooks.append(slideshow_button.stop_slideshow)
         
-    def save_png_data(png_data: PngData):
-        cache_entry = DiskCacheEntry(
-            image_path=png_data.image_path, 
-            png_data=png_data
-        )
-        database.upsert(cache_entry)
+    current_collection: ImageCollection = None
 
-    def load_images_from_directory(dir_path, force_refresh):
-        def process_image(filename):
-            image_path = os.path.join(dir_path, filename)
+    def save_png_data(png_data: PngData):
+        relative_path = os.path.relpath(png_data.image_path, current_collection.directory_path)
+        database.upsert(DiskCacheEntry(
+            collection_id=current_collection.id,
+            relative_path=relative_path,
+            png_data=png_data,
+        ))
+
+    def load_images_from_directory(collection: ImageCollection, force_refresh):
+        dir_path = collection.directory_path
+
+        def process_image(image_path):
+            relative_path = os.path.relpath(image_path, dir_path)
 
             # Check the disk cache, otherwise parse it
-            png_data = database.get(image_path)
+            png_data = database.get(collection.id, relative_path, dir_path)
             should_update_disk_cache = False
             if png_data is None or force_refresh:
                 print(".", end="")
@@ -114,18 +118,18 @@ def main(page: ft.Page):
                 if png_data:
                     favorite = png_data.favorite
                 png_data = png_parser.parse(image_path)
+                png_data.image_path = image_path
                 png_data.favorite = favorite
                 should_update_disk_cache = True
-            
 
-            # Save to memory cache                
+            # Save to memory cache
             image_cache.set(image_path, png_data)
             for tag in png_data.tags:
                 tag_cache.add(tag, image_path)
 
             # Save to disk cache
-            if (should_update_disk_cache):
-                save_png_data(png_data)
+            if should_update_disk_cache:
+                database.upsert(DiskCacheEntry(collection.id, relative_path, png_data))
 
             is_new_image = should_update_disk_cache
             return (image_path, is_new_image)
@@ -191,18 +195,18 @@ def main(page: ft.Page):
         image_gallery.sort()
         image_gallery_favorites.sort()
 
-    def reorganize_directory(dir_path, quickOrganize=False):
+    def reorganize_directory(collection: ImageCollection, quickOrganize=False):
         """
         Walk through all files under dir_path, group each .png into a YYYY-MM subfolder,
         and update the cache entry for each image with its new path.
         """
+        dir_path = collection.directory_path
 
         def isImage(file):
             return file.lower().endswith(".png") and not file.startswith(".")
 
         # 1) Gather all PNG files (full paths), skipping hidden files
         file_list = []
-
         if quickOrganize:
             for file in os.listdir(dir_path):
                 if isImage(file):
@@ -210,21 +214,19 @@ def main(page: ft.Page):
         else:
             for root, dirs, files in os.walk(dir_path):
                 for file in files:
-                    if not isImage(file):
-                        continue
-                    full_path = os.path.join(root, file)
-                    file_list.append(full_path)
+                    if isImage(file):
+                        file_list.append(os.path.join(root, file))
 
         print(f"Loading {len(file_list)} files...")
         count = 0
 
         for image_path in file_list:
-            count = count + 1
+            count += 1
             # 2) Determine creation timestamp and target folder name (YYYY-MM)
             try:
                 ctime = os.path.getctime(image_path)
             except OSError:
-                # if for any reason we can’t stat the file, skip it
+                # if for any reason we can't stat the file, skip it
                 print(f"Cannot stat file {image_path}")
                 continue
 
@@ -232,7 +234,7 @@ def main(page: ft.Page):
             target_folder_name = dt.strftime("%Y-%m")
             target_folder_path = os.path.join(dir_path, target_folder_name)
 
-            # 3) Check if it’s already in the correct YYYY-MM folder
+            # 3) Check if it's already in the correct YYYY-MM folder
             current_parent = os.path.basename(os.path.dirname(image_path))
             if current_parent == target_folder_name:
                 # Already organized, so skip moving/updating
@@ -240,10 +242,8 @@ def main(page: ft.Page):
                 continue
             print(f"\nProcessing image {count}: {current_parent}/{os.path.basename(image_path)}")
 
-            # 4) Create the YYYY-MM folder if it doesn’t exist
-            if not os.path.exists(target_folder_path):
-                print(f"Creating {target_folder_path}")
-                os.makedirs(target_folder_path, exist_ok=True)
+            # 4) Create the YYYY-MM folder if it doesn't exist
+            os.makedirs(target_folder_path, exist_ok=True)
 
             # 5) Move the file into YYYY-MM
             new_path = os.path.join(target_folder_path, os.path.basename(image_path))
@@ -254,12 +254,14 @@ def main(page: ft.Page):
                 print(f"Failed to move {image_path} → {new_path}: {e}")
                 continue
 
-            # 6) Update cache: lookup by the old path, then set image_path to new_path
-            png_data = database.get(image_path)
+            # 6) Update cache: delete the old entry and insert under the new relative path
+            old_relative = os.path.relpath(image_path, dir_path)
+            new_relative = os.path.relpath(new_path, dir_path)
+            png_data = database.get(collection.id, old_relative, dir_path)
             if png_data:
+                database.delete(collection.id, old_relative)
                 png_data.image_path = new_path
-                save_png_data(png_data)
-
+                database.upsert(DiskCacheEntry(collection.id, new_relative, png_data))
 
         show_toast("Finished reorganizing!")
 
@@ -351,23 +353,25 @@ def main(page: ft.Page):
         reload_gallery_images(selected_files)
 
     def open_collection(collection: ImageCollection, force_refresh, e):
+        nonlocal current_collection
+        current_collection = collection
         close_collection()
         show_toast(f"Opening {collection.name}")
         nav_rail_dest_images.disabled = False
         nav_rail_dest_favorites.disabled = True
         nav_rail_dest_tags.disabled = True
         go_to_gallery_view()
-        load_images_from_directory(collection.directory_path, force_refresh)
+        load_images_from_directory(collection, force_refresh)
 
     def reorganize_collection(collection: ImageCollection, e):
         close_collection()
         show_toast(f"Reorganizing {collection.name}")
-        reorganize_directory(collection.directory_path, False)
+        reorganize_directory(collection, False)
 
     def reorganize_collection_quick(collection: ImageCollection, e):
         close_collection()
         show_toast(f"Quick organizing {collection.name}")
-        reorganize_directory(collection.directory_path, True)
+        reorganize_directory(collection, True)
 
     def delete_collection(collection: ImageCollection, e):
         close_collection()
@@ -376,8 +380,7 @@ def main(page: ft.Page):
                     del collection_grid.controls[i]
         collection_grid.update()
         config.delete_collection(collection)
-        # TODO This would be avoided if I just used different Database files for each gallery
-        database.delete_by_prefix(collection.directory_path)
+        database.delete_by_collection(collection.id)
 
     def create_collection_widget(collection: ImageCollection):
         print(collection)
@@ -503,8 +506,7 @@ def main(page: ft.Page):
 
             page.close(dlg_modal)
 
-            collection = ImageCollection(name, folder)
-            config.save_collection(collection)
+            collection = config.save_collection(ImageCollection(name=name, directory_path=folder))
             collection_widget = create_collection_widget(collection)
             collection_grid.controls.append(collection_widget)
             collection_grid.update()
@@ -659,17 +661,12 @@ def main(page: ft.Page):
         )
 
         def handle_delete(image_path, e):
-            # for i, entry in enumerate(image_gallery.images):
-            #     if entry.data.image_path == image_path:
-            #         del image_gallery.grid.controls[i]
-            # for i, entry in enumerate(image_gallery_favorites.grid.controls):
-            #     if entry.data.image_path == image_path:
-            #         del image_gallery_favorites.grid.controls[i]
             image_gallery.delete(image_path)
             image_gallery_favorites.delete(image_path)
-            
-            os.remove(image_path) 
-            database.delete(image_path)
+
+            os.remove(image_path)
+            relative_path = os.path.relpath(image_path, current_collection.directory_path)
+            database.delete(current_collection.id, relative_path)
 
             show_toast(f"Deleted {os.path.basename(image_data.image_path)}.")
 
